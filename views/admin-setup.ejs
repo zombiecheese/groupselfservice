@@ -1,0 +1,85 @@
+<%- include('partials/header', { title, user, isPortalAdmin: true }) %>
+
+<link rel="stylesheet" href="/admin-settings.css?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '0' %>" />
+
+<section class="panel narrow">
+  <div class="row-between">
+    <h2>Welcome &mdash; first-run setup</h2>
+    <a class="ghost" href="/admin/settings">Skip to advanced settings</a>
+  </div>
+  <p class="subtle">
+    You're signed in as the break-glass administrator. Three quick steps will
+    get the portal ready for end users. You can repeat or revisit any of them
+    later from the Settings page.
+  </p>
+
+  <ol class="setup-steps">
+    <li class="setup-step">
+      <div class="setup-step-header">
+        <span class="setup-step-number">1</span>
+        <h3>Rotate the break-glass password</h3>
+      </div>
+      <p>
+        The default break-glass password is well-known and meant only for the
+        very first login. Replace it now and store the new value in your
+        password vault.
+      </p>
+      <p>
+        <a class="ghost" href="/admin/settings?tab=security">Go to Security &rarr; Break-Glass Admin</a>
+      </p>
+    </li>
+
+    <li class="setup-step">
+      <div class="setup-step-header">
+        <span class="setup-step-number">2</span>
+        <h3>Connect a directory</h3>
+      </div>
+      <p>
+        Choose one or both directories the portal should manage. You can come
+        back later to add the other side.
+      </p>
+      <ul class="setup-options">
+        <li>
+          <strong>Active Directory</strong>
+          &mdash; on-prem managedBy ownership for security and distribution
+          groups.
+          <a class="ghost" href="/admin/settings?tab=directory#ad">Configure AD</a>
+        </li>
+        <li>
+          <strong>Microsoft Entra ID</strong>
+          &mdash; cloud-owned groups via Microsoft Graph (OAuth + PKCE).
+          The in-page wizard walks the app-registration steps for you.
+          <a class="ghost" href="/admin/wizards/entra-directory/1">Configure Entra</a>
+        </li>
+      </ul>
+      <p class="subtle">
+        Each integration card has its own <em>Test connection</em> button and
+        <em>Save</em> button. Save only enables when the test passes (or when
+        you leave the integration disabled).
+      </p>
+    </li>
+
+    <li class="setup-step">
+      <div class="setup-step-header">
+        <span class="setup-step-number">3</span>
+        <h3>Decide who else can administer the portal</h3>
+      </div>
+      <p>
+        Break-glass should remain reserved for emergencies. Grant ongoing
+        admin rights to one or more AD or Entra groups so day-to-day changes
+        run under regular identities (and show up in the audit log with a
+        real actor).
+      </p>
+      <p>
+        <a class="ghost" href="/admin/settings?tab=security">Go to Security &rarr; Delegated Admins</a>
+      </p>
+    </li>
+  </ol>
+
+  <p class="subtle setup-footnote">
+    Once at least one directory is enabled this welcome page is no longer
+    shown. You'll land straight on the regular <a href="/admin/settings">Settings</a> page after every sign-in.
+  </p>
+</section>
+
+<%- include('partials/footer') %>

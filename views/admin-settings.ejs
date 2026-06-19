@@ -1,0 +1,615 @@
+<%- include('partials/header', { title, user, isPortalAdmin: true }) %>
+
+<%
+  var activeTab = (typeof tab === 'string' && ['general','directory','notifications','audit','security','health','about'].indexOf(tab) >= 0) ? tab : 'general';
+%>
+
+<link rel="stylesheet" href="/admin-settings.css?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '0' %>" />
+<meta name="csrf-token" content="<%= csrfToken %>" />
+
+<section class="panel">
+  <div class="row-between">
+    <h2>Settings</h2>
+    <a class="ghost" href="/groups">Back to groups</a>
+  </div>
+
+  <%
+    const _insecureFlags = [];
+    if (settings.ad.tlsRejectUnauthorized === false) _insecureFlags.push('AD: TLS validation disabled');
+    // SMTP warnings only apply when SMTP is the selected delivery mode; the
+    // Entra/Graph mode does not use these transport options.
+    const _smtpActive = settings.mail.enabled && settings.mail.mode === 'smtp';
+    if (_smtpActive && settings.mail.smtp.ignoreTls) _insecureFlags.push('SMTP: STARTTLS disabled');
+    if (_smtpActive && settings.mail.smtp.allowUntrustedTls) _insecureFlags.push('SMTP: untrusted TLS allowed');
+    if (_smtpActive && settings.mail.smtp.requireAuth === false) _insecureFlags.push('SMTP: authentication disabled');
+  %>
+  <% if (_insecureFlags.length > 0) { %>
+    <div class="alert warning">
+      <strong>Insecure transport options enabled:</strong> <%= _insecureFlags.join(' \u2022 ') %>. These reduce protection against credential and message interception.
+    </div>
+  <% } %>
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" data-tab="general" aria-selected="<%= activeTab === 'general' ? 'true' : 'false' %>">General</button>
+    <button type="button" role="tab" data-tab="directory" aria-selected="<%= activeTab === 'directory' ? 'true' : 'false' %>">Directory Service Integration</button>
+    <button type="button" role="tab" data-tab="notifications" aria-selected="<%= activeTab === 'notifications' ? 'true' : 'false' %>">Notifications</button>
+    <button type="button" role="tab" data-tab="audit" aria-selected="<%= activeTab === 'audit' ? 'true' : 'false' %>">Audit</button>
+    <button type="button" role="tab" data-tab="security" aria-selected="<%= activeTab === 'security' ? 'true' : 'false' %>">Security</button>
+    <button type="button" role="tab" data-tab="health" aria-selected="<%= activeTab === 'health' ? 'true' : 'false' %>">Health Status</button>
+    <button type="button" role="tab" data-tab="about" aria-selected="<%= activeTab === 'about' ? 'true' : 'false' %>">About</button>
+  </div>
+
+  <!-- General -->
+  <div class="tab-pane <%= activeTab === 'general' ? 'active' : '' %>" data-pane="general">
+    <form method="post" action="/admin/settings/general">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <div class="card">
+        <h3>Branding</h3>
+        <label for="brandingSiteName">Site name</label>
+        <input id="brandingSiteName" name="brandingSiteName" value="<%= settings.branding && settings.branding.siteName ? settings.branding.siteName : 'Group Self Service' %>" placeholder="Group Self Service" />
+        <p class="subtle">Used in the browser tab title and as a fallback for the header.</p>
+        <label for="brandingHeaderTitle">Header title</label>
+        <input id="brandingHeaderTitle" name="brandingHeaderTitle" value="<%= settings.branding && settings.branding.headerTitle ? settings.branding.headerTitle : '' %>" placeholder="Leave blank to use Site name" />
+      </div>
+
+      <% var themeMode = (settings.branding && settings.branding.themeMode) ? settings.branding.themeMode : 'auto'; %>
+      <% var themePrimary = (settings.branding && settings.branding.themePrimary) ? settings.branding.themePrimary : '#0d9488'; %>
+      <% var themeSecondary = (settings.branding && settings.branding.themeSecondary) ? settings.branding.themeSecondary : '#7c3aed'; %>
+      <% var notifySuccess = (settings.branding && settings.branding.notificationSuccessColor) ? settings.branding.notificationSuccessColor : '#198754'; %>
+      <% var notifyFail = (settings.branding && settings.branding.notificationFailColor) ? settings.branding.notificationFailColor : '#dc3545'; %>
+      <div class="card">
+        <h3>Theme</h3>
+        <p class="subtle">Pick a complementary two-color palette. The primary color is used for buttons, focus rings and links; the secondary adds a subtle accent on the header strip and background highlights.</p>
+
+        <label for="brandingThemeMode">Color mode</label>
+        <select id="brandingThemeMode" name="brandingThemeMode">
+          <option value="auto" <%= themeMode === 'auto' ? 'selected' : '' %>>Auto (follow OS)</option>
+          <option value="light" <%= themeMode === 'light' ? 'selected' : '' %>>Light</option>
+          <option value="dark" <%= themeMode === 'dark' ? 'selected' : '' %>>Dark (neutral grey)</option>
+        </select>
+
+        <label>Palette presets</label>
+        <div class="theme-presets" id="themePresets">
+          <button type="button" class="theme-preset" data-primary="#0d9488" data-secondary="#7c3aed" title="Teal & Violet"><span style="background:#0d9488"></span><span style="background:#7c3aed"></span></button>
+          <button type="button" class="theme-preset" data-primary="#2563eb" data-secondary="#10b981" title="Blue & Emerald"><span style="background:#2563eb"></span><span style="background:#10b981"></span></button>
+          <button type="button" class="theme-preset" data-primary="#4f46e5" data-secondary="#f59e0b" title="Indigo & Amber"><span style="background:#4f46e5"></span><span style="background:#f59e0b"></span></button>
+          <button type="button" class="theme-preset" data-primary="#e11d48" data-secondary="#475569" title="Rose & Slate"><span style="background:#e11d48"></span><span style="background:#475569"></span></button>
+          <button type="button" class="theme-preset" data-primary="#059669" data-secondary="#0ea5e9" title="Emerald & Sky"><span style="background:#059669"></span><span style="background:#0ea5e9"></span></button>
+          <button type="button" class="theme-preset" data-primary="#7c3aed" data-secondary="#ec4899" title="Violet & Pink"><span style="background:#7c3aed"></span><span style="background:#ec4899"></span></button>
+          <button type="button" class="theme-preset" data-primary="#475569" data-secondary="#0ea5e9" title="Slate & Sky"><span style="background:#475569"></span><span style="background:#0ea5e9"></span></button>
+          <button type="button" class="theme-preset" data-primary="#b45309" data-secondary="#0f766e" title="Amber & Teal"><span style="background:#b45309"></span><span style="background:#0f766e"></span></button>
+        </div>
+
+        <div class="grid-two">
+          <div>
+            <label for="brandingThemePrimary">Primary color</label>
+            <input id="brandingThemePrimary" name="brandingThemePrimary" type="color" value="<%= themePrimary %>" />
+          </div>
+          <div>
+            <label for="brandingThemeSecondary">Secondary color</label>
+            <input id="brandingThemeSecondary" name="brandingThemeSecondary" type="color" value="<%= themeSecondary %>" />
+          </div>
+        </div>
+        <p class="subtle">Preview applies after saving.</p>
+
+        <hr />
+        <label>Notification colors</label>
+        <p class="subtle">Colors used for success and failure messages (toasts, member add/remove results, and connection tests). These stay fixed regardless of the light/dark color mode.</p>
+        <div class="grid-two">
+          <div>
+            <label for="brandingNotificationSuccessColor">Success color</label>
+            <input id="brandingNotificationSuccessColor" name="brandingNotificationSuccessColor" type="color" value="<%= notifySuccess %>" />
+          </div>
+          <div>
+            <label for="brandingNotificationFailColor">Failure / error color</label>
+            <input id="brandingNotificationFailColor" name="brandingNotificationFailColor" type="color" value="<%= notifyFail %>" />
+          </div>
+        </div>
+        <p class="subtle">Preview applies after saving.</p>
+
+        <hr />
+        <label for="brandingLogoImport">Header logo image</label>
+        <input id="brandingLogoImport" type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" data-import-data-url="brandingLogoDataUrl" data-preview-image="brandingLogoPreview" />
+        <input id="brandingLogoDataUrl" name="brandingLogoDataUrl" type="hidden" value="<%= settings.branding && settings.branding.logoDataUrl ? settings.branding.logoDataUrl : '' %>" />
+        <p class="subtle">Maximum 1.5 MB raw file (≈ 2 MB after encoding). Accepted formats: PNG, JPG, GIF, WebP, SVG.</p>
+        <div class="inline-error" id="brandingLogoError" role="alert" hidden></div>
+        <div class="branding-logo-row">
+          <div class="branding-logo-preview-wrap<%= settings.branding && settings.branding.logoDataUrl ? '' : ' empty' %>" id="brandingLogoPreviewWrap">
+            <img id="brandingLogoPreview" class="branding-logo-preview<%= settings.branding && settings.branding.logoDataUrl ? '' : ' hidden' %>" src="<%= settings.branding && settings.branding.logoDataUrl ? settings.branding.logoDataUrl : '' %>" alt="Header logo preview" />
+            <span class="branding-logo-placeholder<%= settings.branding && settings.branding.logoDataUrl ? ' hidden' : '' %>" id="brandingLogoPlaceholder">No logo selected</span>
+          </div>
+          <button type="button" class="secondary branding-logo-clear" id="brandingLogoClear">Remove logo</button>
+        </div>
+        <p class="subtle">The logo appears beside the site title and is scaled automatically to fit the header. Use a transparent PNG, SVG, or WebP for best results.</p>
+      </div>
+
+      <div class="card">
+        <h3>Group Display Filter</h3>
+        <p class="subtle">Hide groups of the selected types from end users on the groups list. Useful when, for example, distribution lists are managed in a different tool. Leave everything unchecked to show all groups. Filtering happens after the directory query, so audit records still capture the full counts.</p>
+        <%
+          var excluded = (settings.groupDisplay && Array.isArray(settings.groupDisplay.excludedTypes))
+            ? settings.groupDisplay.excludedTypes.map(function (t) { return String(t).toLowerCase(); })
+            : [];
+          var adTypes = [
+            'Security (Global)',
+            'Security (Domain Local)',
+            'Security (Universal)',
+            'Distribution (Global)',
+            'Distribution (Domain Local)',
+            'Distribution (Universal)'
+          ];
+          var entraTypes = [
+            'Microsoft 365',
+            'Security',
+            'Mail-enabled Security',
+            'Distribution'
+          ];
+          function isExcluded(label) { return excluded.indexOf(String(label).toLowerCase()) !== -1; }
+        %>
+        <div class="grid-two">
+          <div>
+            <h4>Active Directory</h4>
+            <% adTypes.forEach(function (label) { %>
+              <label><input type="checkbox" name="excludedGroupTypes" value="<%= label %>" <%= isExcluded(label) ? 'checked' : '' %> /> Hide <%= label %></label>
+            <% }); %>
+          </div>
+          <div>
+            <h4>Entra ID</h4>
+            <% entraTypes.forEach(function (label) { %>
+              <label><input type="checkbox" name="excludedGroupTypes" value="<%= label %>" <%= isExcluded(label) ? 'checked' : '' %> /> Hide <%= label %></label>
+            <% }); %>
+            <p class="subtle">Hiding a base type also hides its dynamic-membership variant (e.g. <em>Microsoft 365 &middot; Dynamic</em>).</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="save-row">
+        <button type="submit">Save General Settings</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Directory -->
+  <div class="tab-pane <%= activeTab === 'directory' ? 'active' : '' %>" data-pane="directory">
+    <div class="grid-two">
+      <form method="post" action="/admin/settings/directory/ad" data-gate="ad">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <div class="card" data-test-card="ad">
+          <h3>Active Directory Integration</h3>
+          <label><input type="checkbox" name="adEnabled" data-gate-toggle <%= settings.ad.enabled ? 'checked' : '' %> /> Enable AD integration</label>
+          <label for="adLdapUrl">LDAP URL</label>
+          <input id="adLdapUrl" name="adLdapUrl" data-gate-input value="<%= settings.ad.ldapUrl %>" />
+          <label for="adBaseDn">Base DN</label>
+          <input id="adBaseDn" name="adBaseDn" data-gate-input value="<%= settings.ad.baseDn %>" />
+          <p class="subtle">LDAP bind uses the signed-in user credentials for each session.</p>
+          <label><input type="checkbox" name="adIncludeNestedManagedBy" <%= settings.ad.includeNestedManagedBy ? 'checked' : '' %> /> Resolve nested managedBy ownership</label>
+
+          <h4>LDAPS / TLS</h4>
+          <p class="subtle">When the URL is <code>ldaps://</code>, Node validates the DC certificate against trusted CAs by default. Paste a PEM bundle below (Enterprise Root and any intermediates) to trust certs that are not in the OS / Node bundle.</p>
+          <label for="adTlsCaPem">Trusted CA bundle (PEM)</label>
+          <textarea id="adTlsCaPem" name="adTlsCaPem" data-gate-input rows="6" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"><%= settings.ad.tlsCaPem %></textarea>
+          <div class="test-row">
+            <button type="button" data-fetch-ca-button>Fetch CA from server</button>
+            <span class="test-status pending" data-fetch-ca-status>Idle</span>
+          </div>
+          <pre class="test-detail" data-fetch-ca-detail hidden></pre>
+          <label for="adTlsServerName">TLS server name override (optional)</label>
+          <input id="adTlsServerName" name="adTlsServerName" data-gate-input value="<%= settings.ad.tlsServerName %>" placeholder="dc01.contoso.local" />
+          <label><input type="checkbox" name="adTlsAllowUntrusted" data-gate-input <%= settings.ad.tlsRejectUnauthorized === false ? 'checked' : '' %> /> Allow untrusted / self-signed certificates (insecure)</label>
+          <p class="subtle">When checked, the server certificate is not validated. Use only for short-lived testing.</p>
+
+          <h4>Connectivity</h4>
+          <label><input type="checkbox" name="adIpv4Only" data-gate-input <%= settings.ad.ipv4Only ? 'checked' : '' %> /> Prefer IPv4 only when contacting domain controllers</label>
+          <p class="subtle">Skips IPv6 (AAAA) addresses entirely. Recommended on networks where IPv6 to DCs is not routable; avoids ~3s probe stalls per call.</p>
+
+          <h4>Test credentials (optional)</h4>
+          <p class="subtle">Used only for the Test AD Connection button below. Falls back to your current session credentials if blank. Not stored.</p>
+          <label for="adTestUsername">Bind UPN or DN</label>
+          <input id="adTestUsername" name="adTestUsername" placeholder="user@contoso.local" autocomplete="off" />
+          <label for="adTestPassword">Password</label>
+          <input id="adTestPassword" name="adTestPassword" type="password" autocomplete="new-password" />
+
+          <div class="test-row">
+            <button type="button" data-test-button="ad">Test AD Connection</button>
+            <span class="test-status pending" data-test-status="ad">Not tested</span>
+          </div>
+          <pre class="test-detail" data-test-detail="ad" hidden></pre>
+
+          <div class="save-row">
+            <button type="submit" data-save-button>Save AD Settings</button>
+            <p class="gate-note">Save is enabled when AD passes its test, or when the integration is disabled.</p>
+          </div>
+        </div>
+      </form>
+
+      <form method="post" action="/admin/settings/directory/entra" data-gate="entra">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <div class="card" data-test-card="entra">
+          <h3>Entra ID Integration</h3>
+          <p class="subtle"><a href="/admin/wizards/entra-directory/1">Launch the Entra directory setup wizard</a> to register the app and copy values here.</p>
+          <label><input type="checkbox" name="entraEnabled" data-gate-toggle <%= settings.entra.enabled ? 'checked' : '' %> /> Enable Entra integration</label>
+          <label for="entraTenantId">Tenant ID</label>
+          <input id="entraTenantId" name="entraTenantId" data-gate-input value="<%= settings.entra.tenantId %>" />
+          <label for="entraClientId">Client ID</label>
+          <input id="entraClientId" name="entraClientId" data-gate-input value="<%= settings.entra.clientId %>" />
+          <label for="entraClientSecret">Client Secret</label>
+          <input id="entraClientSecret" name="entraClientSecret" type="password" data-gate-input value="<%= settings.entra.clientSecret %>" />
+          <label for="entraScope">Scope</label>
+          <input id="entraScope" name="entraScope" value="<%= settings.entra.scope %>" />
+          <p class="subtle">For member self-service writes, include <code>GroupMember.ReadWrite.All</code> in the scope. Admin consent is required and existing users must sign out and back in to re-consent.</p>
+          <label for="entraRedirectUri">Redirect URI</label>
+          <input id="entraRedirectUri" name="entraRedirectUri" value="<%= settings.entra.redirectUri %>" />
+          <label><input type="checkbox" name="entraAllowMemberWrites" <%= settings.entra.allowMemberWrites ? 'checked' : '' %> /> Allow users to add/remove members of their Entra-owned groups</label>
+
+          <div class="test-row">
+            <button type="button" data-test-button="entra">Test Entra Connection</button>
+            <span class="test-status pending" data-test-status="entra">Not tested</span>
+          </div>
+
+          <div class="save-row">
+            <button type="submit" data-save-button>Save Entra Settings</button>
+            <p class="gate-note">Save is enabled when Entra passes its test, or when the integration is disabled.</p>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Notifications -->
+  <div class="tab-pane <%= activeTab === 'notifications' ? 'active' : '' %>" data-pane="notifications">
+    <!-- Mail server has its own form so each delivery mode has an independent
+         test and save. Only the fields for the selected mode are shown. -->
+    <form method="post" action="/admin/settings/mail" data-gate="mail">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <div class="card" data-test-card="mail">
+        <h3>Mail Server</h3>
+        <p class="subtle"><a href="/admin/wizards/entra-mail/1">Launch the Entra mail (modern OAuth) setup wizard</a>.</p>
+        <label><input type="checkbox" name="mailEnabled" data-gate-toggle <%= settings.mail.enabled ? 'checked' : '' %> /> Enable outbound mail</label>
+
+        <fieldset>
+          <legend>Delivery mode</legend>
+          <label><input type="radio" name="mailMode" value="smtp" data-gate-input data-mail-mode <%= settings.mail.mode === 'smtp' ? 'checked' : '' %> /> SMTP server</label>
+          <label><input type="radio" name="mailMode" value="entra" data-gate-input data-mail-mode <%= settings.mail.mode === 'entra' ? 'checked' : '' %> /> Entra / Exchange Online (modern OAuth)</label>
+        </fieldset>
+
+        <label for="mailFromAddress">From address</label>
+        <input id="mailFromAddress" name="mailFromAddress" value="<%= settings.mail.fromAddress %>" />
+
+        <!-- SMTP mode -->
+        <div data-mail-block="smtp">
+          <h4>SMTP</h4>
+          <label for="mailSmtpHost">Host</label>
+          <input id="mailSmtpHost" name="mailSmtpHost" data-gate-input value="<%= settings.mail.smtp.host %>" />
+          <label for="mailSmtpPort">Port</label>
+          <input id="mailSmtpPort" name="mailSmtpPort" data-gate-input type="number" min="1" value="<%= settings.mail.smtp.port %>" />
+          <label><input type="checkbox" name="mailSmtpSecure" data-gate-input <%= settings.mail.smtp.secure ? 'checked' : '' %> /> Use TLS (implicit, port 465)</label>
+          <label><input type="checkbox" name="mailSmtpIgnoreTls" data-gate-input <%= settings.mail.smtp.ignoreTls ? 'checked' : '' %> /> Disable STARTTLS (plaintext on port 25)</label>
+          <label><input type="checkbox" name="mailSmtpAllowUntrustedTls" data-gate-input <%= settings.mail.smtp.allowUntrustedTls ? 'checked' : '' %> /> Allow untrusted / self-signed TLS certificates</label>
+          <label><input type="checkbox" id="mailSmtpRequireAuth" name="mailSmtpRequireAuth" data-gate-input data-toggle-smtp-auth <%= settings.mail.smtp.requireAuth !== false ? 'checked' : '' %> /> Authenticate to SMTP server</label>
+          <div data-smtp-auth-fields<%= settings.mail.smtp.requireAuth === false ? ' hidden' : '' %>>
+            <label for="mailSmtpUsername">Username</label>
+            <input id="mailSmtpUsername" name="mailSmtpUsername" data-gate-input value="<%= settings.mail.smtp.username %>" autocomplete="off" />
+            <label for="mailSmtpPassword">Password</label>
+            <input id="mailSmtpPassword" name="mailSmtpPassword" data-gate-input type="password" value="<%= settings.mail.smtp.password %>" autocomplete="new-password" />
+          </div>
+
+          <div class="test-row">
+            <button type="button" data-test-button="mail">Test SMTP Connection</button>
+            <span class="test-status pending" data-test-status="mail">Not tested</span>
+          </div>
+          <div class="save-row">
+            <button type="submit" data-save-button>Save SMTP Settings</button>
+            <p class="gate-note">Save is enabled when the SMTP test passes, or when mail is disabled.</p>
+          </div>
+        </div>
+
+        <!-- Entra / Exchange Online mode -->
+        <div data-mail-block="entra">
+          <h4>Entra / Exchange Online</h4>
+          <label for="mailEntraTenantId">Tenant ID</label>
+          <input id="mailEntraTenantId" name="mailEntraTenantId" data-gate-input value="<%= settings.mail.entra.tenantId %>" />
+          <label for="mailEntraClientId">Client ID</label>
+          <input id="mailEntraClientId" name="mailEntraClientId" data-gate-input value="<%= settings.mail.entra.clientId %>" />
+          <label for="mailEntraClientSecret">Client Secret</label>
+          <input id="mailEntraClientSecret" name="mailEntraClientSecret" data-gate-input type="password" value="<%= settings.mail.entra.clientSecret %>" />
+          <label for="mailEntraSenderUpn">Sender mailbox (UPN)</label>
+          <input id="mailEntraSenderUpn" name="mailEntraSenderUpn" value="<%= settings.mail.entra.senderUpn %>" />
+
+          <div class="test-row">
+            <button type="button" data-test-button="mail">Test Entra Mail</button>
+            <span class="test-status pending" data-test-status="mail">Not tested</span>
+          </div>
+          <div class="save-row">
+            <button type="submit" data-save-button>Save Entra Mail Settings</button>
+            <p class="gate-note">Save is enabled when the Entra mail test passes, or when mail is disabled.</p>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <form method="post" action="/admin/settings/notifications" data-gate="notifications">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <div class="card">
+        <h3>Member Notifications</h3>
+        <p class="subtle">Email a user when they are added to a group. Requires the mail server above to be enabled.</p>
+        <label><input type="checkbox" name="notifyMemberAddedEnabled" <%= settings.notifications.memberAddedEnabled ? 'checked' : '' %> /> Notify users when they are added to a group</label>
+
+        <p class="subtle">Available variables: <code>%targetuser%</code>, <code>%groupname%</code>, <code>%domain%</code>, <code>%performedby%</code></p>
+
+        <label for="notifyMemberAddedSubject">Subject template</label>
+        <input id="notifyMemberAddedSubject" name="notifyMemberAddedSubject" value="<%= settings.notifications.memberAddedSubject %>" />
+
+        <label for="notifyMemberAddedBody">Body template</label>
+        <textarea id="notifyMemberAddedBody" name="notifyMemberAddedBody" rows="8"><%= settings.notifications.memberAddedBody %></textarea>
+
+        <hr />
+
+        <label><input type="checkbox" name="notifyMemberRemovedEnabled" <%= settings.notifications.memberRemovedEnabled ? 'checked' : '' %> /> Notify users when they are removed from a group</label>
+
+        <label for="notifyMemberRemovedSubject">Subject template</label>
+        <input id="notifyMemberRemovedSubject" name="notifyMemberRemovedSubject" value="<%= settings.notifications.memberRemovedSubject %>" />
+
+        <label for="notifyMemberRemovedBody">Body template</label>
+        <textarea id="notifyMemberRemovedBody" name="notifyMemberRemovedBody" rows="8"><%= settings.notifications.memberRemovedBody %></textarea>
+      </div>
+
+      <div class="save-row">
+        <button type="submit" data-save-button>Save Notification Settings</button>
+        <p class="gate-note">Templates apply when the matching notification and outbound mail are enabled.</p>
+      </div>
+    </form>
+
+    <form method="post" action="/admin/settings/send-test-mail" class="card">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <h3>Send Test Email</h3>
+      <p class="subtle">Uses the saved mail configuration. Save first if you have changes pending.</p>
+      <label for="testMailTo">Recipient address</label>
+      <input id="testMailTo" name="testMailTo" type="email" placeholder="someone@example.com" required />
+      <button type="submit">Send Test Email</button>
+    </form>
+  </div>
+
+  <!-- Audit -->
+  <div class="tab-pane <%= activeTab === 'audit' ? 'active' : '' %>" data-pane="audit">
+    <form method="post" action="/admin/settings/audit">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <div class="card">
+        <h3>Audit and Syslog</h3>
+        <label><input type="checkbox" name="auditEnabled" <%= settings.audit.enabled ? 'checked' : '' %> /> Enable hosted auditing</label>
+        <label for="auditFilePath">Audit file path</label>
+        <input id="auditFilePath" name="auditFilePath" value="<%= settings.audit.filePath %>" />
+        <label for="auditRetentionDays">Retention days</label>
+        <input id="auditRetentionDays" name="auditRetentionDays" type="number" min="1" value="<%= settings.audit.retentionDays %>" />
+
+        <label><input type="checkbox" name="auditSyslogEnabled" <%= settings.audit.syslogEnabled ? 'checked' : '' %> /> Forward audit events to syslog</label>
+        <label for="auditSyslogHost">Syslog host</label>
+        <input id="auditSyslogHost" name="auditSyslogHost" value="<%= settings.audit.syslogHost %>" />
+        <label for="auditSyslogPort">Syslog port</label>
+        <input id="auditSyslogPort" name="auditSyslogPort" type="number" min="1" value="<%= settings.audit.syslogPort %>" />
+        <label for="auditSyslogProtocol">Syslog protocol</label>
+        <select id="auditSyslogProtocol" name="auditSyslogProtocol">
+          <option value="udp4" <%= settings.audit.syslogProtocol === 'udp4' ? 'selected' : '' %>>udp4</option>
+          <option value="udp6" <%= settings.audit.syslogProtocol === 'udp6' ? 'selected' : '' %>>udp6</option>
+        </select>
+        <label for="auditSyslogAppName">Syslog app name</label>
+        <input id="auditSyslogAppName" name="auditSyslogAppName" value="<%= settings.audit.syslogAppName %>" />
+      </div>
+
+      <div class="save-row">
+        <button type="submit">Save Audit Settings</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Security -->
+  <div class="tab-pane <%= activeTab === 'security' ? 'active' : '' %>" data-pane="security">
+    <form method="post" action="/admin/settings/security">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <div class="card">
+        <h3>Break-Glass Admin</h3>
+        <label for="breakGlassUsername">Username</label>
+        <input id="breakGlassUsername" name="breakGlassUsername" value="<%= settings.breakGlass.username %>" required />
+        <label for="breakGlassPassword">New password (leave blank to keep existing)</label>
+        <input id="breakGlassPassword" name="breakGlassPassword" type="password" autocomplete="new-password" />
+      </div>
+
+      <div class="card">
+        <h3>Web Server TLS</h3>
+        <label><input type="checkbox" name="webTlsEnabled" <%= settings.webTls && settings.webTls.enabled ? 'checked' : '' %> /> Enable native HTTPS on the application port</label>
+        <p class="subtle">Import a PEM certificate and matching PEM private key to let the Node web server terminate TLS directly. Restart the service after saving for certificate changes to take effect.</p>
+
+        <div class="grid-two">
+          <div>
+            <label for="webTlsCertImport">Certificate file import</label>
+            <input id="webTlsCertImport" type="file" accept=".pem,.crt,.cer,.txt" data-import-textarea="webTlsCertPem" />
+          </div>
+          <div>
+            <label for="webTlsKeyImport">Private key file import</label>
+            <input id="webTlsKeyImport" type="file" accept=".pem,.key,.txt" data-import-textarea="webTlsKeyPem" />
+          </div>
+        </div>
+
+        <label for="webTlsCertPem">Certificate (PEM)</label>
+        <textarea id="webTlsCertPem" name="webTlsCertPem" rows="8" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"><%= settings.webTls && settings.webTls.certPem ? settings.webTls.certPem : '' %></textarea>
+
+        <label for="webTlsKeyPem">Private key (PEM)</label>
+        <textarea id="webTlsKeyPem" name="webTlsKeyPem" rows="8" placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"><%= settings.webTls && settings.webTls.keyPem ? settings.webTls.keyPem : '' %></textarea>
+
+        <label for="webTlsPassphrase">Private key passphrase (optional)</label>
+        <input id="webTlsPassphrase" name="webTlsPassphrase" type="password" autocomplete="new-password" value="<%= settings.webTls && settings.webTls.passphrase ? settings.webTls.passphrase : '' %>" />
+
+        <hr />
+        <label><input type="checkbox" name="webTlsRedirectHttpEnabled" <%= settings.webTls && settings.webTls.redirectHttpEnabled ? 'checked' : '' %> /> Redirect plain HTTP to HTTPS</label>
+        <label for="webTlsRedirectHttpPort">HTTP redirect port</label>
+        <input id="webTlsRedirectHttpPort" name="webTlsRedirectHttpPort" type="number" min="1" max="65535" value="<%= settings.webTls && settings.webTls.redirectHttpPort ? settings.webTls.redirectHttpPort : 80 %>" />
+        <p class="subtle">Starts a second HTTP listener that sends `301` redirects to the HTTPS port. Port 80 is typical, but use any reachable port your host can bind.</p>
+      </div>
+
+      <div class="grid-two">
+        <div class="card">
+          <h3>Delegated Admin (AD Groups)</h3>
+          <% if (typeof isBreakGlass !== 'undefined' && isBreakGlass) { %>
+            <p class="subtle">Signed in as break-glass &mdash; AD search is unavailable. Paste the full distinguished name (DN) of each delegated admin group below.</p>
+          <% } else { %>
+            <p class="subtle">Search by group name. Click an entry to add it; use the &times; button to remove.</p>
+          <% } %>
+          <div class="picker" data-picker="ad">
+            <% if (typeof isBreakGlass !== 'undefined' && isBreakGlass) { %>
+              <div class="manual-add">
+                <input type="text" class="manual-input" data-manual-input="ad" placeholder="CN=Group,OU=Groups,DC=example,DC=com" autocomplete="off" />
+                <button type="button" class="secondary" data-manual-add="ad">Add DN</button>
+              </div>
+              <div class="manual-error" data-manual-error="ad" hidden></div>
+            <% } else { %>
+              <input type="search" class="picker-search" placeholder="Search AD groups (min 2 chars)..." autocomplete="off" />
+              <div class="picker-results" hidden></div>
+            <% } %>
+            <div class="chips" data-chip-list="ad">
+              <% (typeof delegatedAdGroups !== 'undefined' ? delegatedAdGroups : []).forEach(function(g) { %>
+                <span class="chip" data-value="<%= g.dn %>" title="<%= g.dn %>">
+                  <span class="chip-label"><%= g.name %></span>
+                  <button type="button" class="chip-remove" aria-label="Remove">&times;</button>
+                </span>
+              <% }); %>
+            </div>
+          </div>
+          <textarea name="delegatedAdGroupDns" data-chip-store="ad" hidden><%= settings.delegatedAdmin.adGroupDns.join('\n') %></textarea>
+        </div>
+        <div class="card">
+          <h3>Delegated Admin (Entra Groups)</h3>
+          <p class="subtle">Sign in to Entra to enable search. Click an entry to add it; use the &times; button to remove.</p>
+          <div class="picker" data-picker="entra">
+            <input type="search" class="picker-search" placeholder="Search Entra groups (min 2 chars)..." autocomplete="off" />
+            <div class="picker-results" hidden></div>
+            <div class="chips" data-chip-list="entra">
+              <% (settings.delegatedAdmin.entraGroupIds || []).forEach(function(id) { %>
+                <span class="chip" data-value="<%= id %>" title="<%= id %>">
+                  <span class="chip-label"><%= id %></span>
+                  <button type="button" class="chip-remove" aria-label="Remove">&times;</button>
+                </span>
+              <% }); %>
+            </div>
+          </div>
+          <textarea name="delegatedEntraGroupIds" data-chip-store="entra" hidden><%= settings.delegatedAdmin.entraGroupIds.join('\n') %></textarea>
+        </div>
+      </div>
+
+      <div class="save-row">
+        <button type="submit">Save Security Settings</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Health Status -->
+  <div class="tab-pane <%= activeTab === 'health' ? 'active' : '' %>" data-pane="health">
+    <div class="row-between">
+      <p class="subtle">Live status of the application and each integration. Probes run on demand and are capped with short timeouts.</p>
+      <button type="button" id="healthRefresh" class="secondary">Refresh</button>
+    </div>
+    <div id="healthError" class="alert error" hidden></div>
+    <div id="healthGenerated" class="subtle" style="margin-bottom:0.5rem;"></div>
+
+    <div class="grid-two">
+      <div class="card health-card" data-health-card="app">
+        <div class="health-card-header">
+          <h3>Application</h3>
+          <span class="test-status pending" data-health-status="app">…</span>
+        </div>
+        <p class="subtle" data-health-message="app">Loading…</p>
+        <dl class="health-meta" data-health-meta="app"></dl>
+      </div>
+
+      <div class="card health-card" data-health-card="ad">
+        <div class="health-card-header">
+          <h3>Active Directory</h3>
+          <span class="test-status pending" data-health-status="ad">…</span>
+        </div>
+        <p class="subtle" data-health-message="ad">Loading…</p>
+        <dl class="health-meta" data-health-meta="ad"></dl>
+      </div>
+
+      <div class="card health-card" data-health-card="entra">
+        <div class="health-card-header">
+          <h3>Entra ID</h3>
+          <span class="test-status pending" data-health-status="entra">…</span>
+        </div>
+        <p class="subtle" data-health-message="entra">Loading…</p>
+        <dl class="health-meta" data-health-meta="entra"></dl>
+      </div>
+
+      <div class="card health-card" data-health-card="mail">
+        <div class="health-card-header">
+          <h3>Mail</h3>
+          <span class="test-status pending" data-health-status="mail">…</span>
+        </div>
+        <p class="subtle" data-health-message="mail">Loading…</p>
+        <dl class="health-meta" data-health-meta="mail"></dl>
+      </div>
+    </div>
+
+    <div class="card health-card" data-health-card="metrics">
+      <div class="health-card-header">
+        <h3>Performance — initial groups list load</h3>
+        <span class="test-status pending" data-health-status="metrics">…</span>
+      </div>
+      <p class="subtle" data-health-message="metrics">Loading…</p>
+      <dl class="health-meta" data-health-meta="metrics"></dl>
+      <p class="subtle">Samples are kept in memory only and reset when the application restarts. Up to 200 of the most recent renders are aggregated.</p>
+    </div>
+  </div>
+
+  <!-- About -->
+  <% var _app = (typeof appInfo !== 'undefined' && appInfo) ? appInfo : {}; %>
+  <div class="tab-pane <%= activeTab === 'about' ? 'active' : '' %>" data-pane="about">
+    <div class="card about-card">
+      <h3>
+        <%= settings.branding && settings.branding.siteName ? settings.branding.siteName : 'Group Self Service' %>
+        <% if (_app.version) { %><span class="about-version">v<%= _app.version %></span><% } %>
+      </h3>
+      <% if (_app.description) { %>
+        <p><%= _app.description %></p>
+      <% } %>
+      <p class="subtle">
+        A web-based self-service portal that lets directory group owners manage their own
+        Active Directory and Microsoft Entra ID group memberships &mdash; adding and removing
+        members, reviewing rosters, and exporting membership &mdash; without raising a helpdesk
+        ticket. Every change is recorded to a tamper-evident audit log.
+      </p>
+
+      <dl class="about-meta">
+        <% if (_app.author) { %>
+          <dt>Author</dt>
+          <dd><%= _app.author %></dd>
+        <% } %>
+        <% if (_app.license) { %>
+          <dt>License</dt>
+          <dd><%= _app.license %></dd>
+        <% } %>
+        <% if (_app.version) { %>
+          <dt>Version</dt>
+          <dd><%= _app.version %></dd>
+        <% } %>
+      </dl>
+
+      <% if (_app.repositoryUrl || _app.issuesUrl) { %>
+        <div class="about-links">
+          <% if (_app.repositoryUrl) { %>
+            <a class="ghost" href="<%= _app.repositoryUrl %>" target="_blank" rel="noopener noreferrer">Source repository</a>
+          <% } %>
+          <% if (_app.issuesUrl) { %>
+            <a class="ghost" href="<%= _app.issuesUrl %>" target="_blank" rel="noopener noreferrer">Report an issue</a>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<script src="/admin-settings.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '0' %>" defer></script>
+
+<%- include('partials/footer') %>
+

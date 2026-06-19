@@ -1,0 +1,513 @@
+:root {
+  color-scheme: light dark;
+
+  /* Theme accent colors. These are overridden inline on <html> from
+     branding.themePrimary / branding.themeSecondary. Hover/soft variants are
+     derived via color-mix so admins only need to pick the two base colors. */
+  --accent: #0d9488;
+  --accent-2: #7c3aed;
+  --accent-hover: color-mix(in oklab, var(--accent) 82%, #000);
+  --accent-soft: color-mix(in oklab, var(--accent) 16%, transparent);
+  --accent-2-soft: color-mix(in oklab, var(--accent-2) 16%, transparent);
+
+  /* Corner-radius scale. Kept deliberately tight for a crisper, less rounded
+     look. Pills (tags, chips, status) intentionally stay fully rounded. */
+  --radius-lg: 8px;
+  --radius-md: 6px;
+  --radius-sm: 4px;
+  --radius-pill: 999px;
+
+  /* Light theme (default) — neutral surfaces tinted only via accent gradients. */
+  --bg-grad-1: color-mix(in oklab, var(--accent) 8%, #f4f6f8);
+  --bg-grad-2: #f6f7f9;
+  --bg-grad-3: color-mix(in oklab, var(--accent-2) 6%, #f1f3f5);
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --panel-soft: #fafbfc;
+  --ink: #1b1c1f;
+  --muted: #5c6068;
+  --danger: #b42318;
+  --danger-soft: #fde8e7;
+  --line: #dcdfe3;
+  --input-bg: #ffffff;
+  --input-border: #c2c6cc;
+  --header-bg: rgba(255, 255, 255, 0.82);
+  --shadow: 0 8px 28px rgba(20, 22, 28, 0.08);
+  --shadow-modal: 0 25px 60px rgba(0, 0, 0, 0.25);
+  --tag-ok-bg: var(--accent-soft);
+  --tag-ok-fg: var(--accent-hover);
+  --tag-warn-bg: #fff2d8;
+  --tag-warn-fg: #7a5412;
+  --alert-error-bg: #fde8e7;
+  --alert-error-fg: #8b1d18;
+  --alert-success-bg: var(--accent-soft);
+  --alert-success-fg: var(--accent-hover);
+}
+
+/* Neutral grey dark theme. Surfaces are pure greys; only accents carry color. */
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    --bg-grad-1: #1a1b1e;
+    --bg-grad-2: #131418;
+    --bg-grad-3: #0f1013;
+    --bg: #131418;
+    --panel: #1c1d21;
+    --panel-soft: #17181c;
+    --ink: #e6e7ea;
+    --muted: #9aa0a8;
+    --accent-hover: color-mix(in oklab, var(--accent) 72%, #fff);
+    --accent-soft: color-mix(in oklab, var(--accent) 22%, transparent);
+    --accent-2-soft: color-mix(in oklab, var(--accent-2) 22%, transparent);
+    --danger: #f87171;
+    --danger-soft: rgba(248, 113, 113, 0.16);
+    --line: #2a2b30;
+    --input-bg: #1a1b1f;
+    --input-border: #34353b;
+    --header-bg: rgba(28, 29, 33, 0.85);
+    --shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+    --shadow-modal: 0 25px 60px rgba(0, 0, 0, 0.7);
+    --tag-warn-bg: rgba(250, 204, 21, 0.18);
+    --tag-warn-fg: #facc15;
+    --alert-error-bg: rgba(248, 113, 113, 0.18);
+    --alert-error-fg: #fecaca;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg-grad-1: #1a1b1e;
+  --bg-grad-2: #131418;
+  --bg-grad-3: #0f1013;
+  --bg: #131418;
+  --panel: #1c1d21;
+  --panel-soft: #17181c;
+  --ink: #e6e7ea;
+  --muted: #9aa0a8;
+  --accent-hover: color-mix(in oklab, var(--accent) 72%, #fff);
+  --accent-soft: color-mix(in oklab, var(--accent) 22%, transparent);
+  --accent-2-soft: color-mix(in oklab, var(--accent-2) 22%, transparent);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.16);
+  --line: #2a2b30;
+  --input-bg: #1a1b1f;
+  --input-border: #34353b;
+  --header-bg: rgba(28, 29, 33, 0.85);
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  --shadow-modal: 0 25px 60px rgba(0, 0, 0, 0.7);
+  --tag-warn-bg: rgba(250, 204, 21, 0.18);
+  --tag-warn-fg: #facc15;
+  --alert-error-bg: rgba(248, 113, 113, 0.18);
+  --alert-error-fg: #fecaca;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top right, var(--bg-grad-1), var(--bg-grad-2) 55%, var(--bg-grad-3) 100%);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.site-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--header-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  position: relative;
+}
+
+.site-header::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+
+.site-header h1 {
+  margin: 0;
+}
+
+.site-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.site-header-logo {
+  display: block;
+  width: auto;
+  max-width: min(22vw, 220px);
+  height: auto;
+  max-height: 52px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.site-header-user {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.site-header-identity {
+  margin: 0;
+}
+
+.site-header-identity .muted {
+  color: var(--muted);
+  margin-left: 0.25rem;
+}
+
+.site-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.site-header-actions .ghost,
+.site-header-actions form.inline-form button.ghost {
+  margin: 0;
+  width: auto;
+  white-space: nowrap;
+}
+
+.site-header-actions form.inline-form {
+  margin: 0;
+  width: auto;
+}
+
+.page {
+  max-width: 1100px;
+  margin: 1.25rem auto;
+  padding: 0 1rem 2rem;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.panel.narrow {
+  max-width: 440px;
+  margin: 1rem auto;
+}
+
+.subtle {
+  color: var(--muted);
+}
+
+.row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.grid-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+  background: var(--panel-soft);
+}
+
+/* Wizard step controls: keep Back/Continue/Save on one row with spacing so the
+   full-width form button never overlaps the inline navigation links. */
+.wizard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.wizard-actions a,
+.wizard-actions button {
+  width: auto;
+  margin: 0;
+}
+
+.wizard-actions a.primary,
+.wizard-actions button[type="submit"] {
+  margin-left: auto;
+}
+
+a.primary {
+  display: inline-block;
+  background: var(--accent);
+  color: white;
+  border: none;
+  text-decoration: none;
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  transition: background 0.15s ease;
+}
+
+a.primary:hover {
+  background: var(--accent-hover);
+}
+
+label {
+  display: block;
+  margin: 0.4rem 0;
+  font-weight: 600;
+}
+
+input,
+textarea,
+button {
+  width: 100%;
+  font: inherit;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--ink);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+button {
+  margin-top: 0.6rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+button:hover {
+  background: var(--accent-hover);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button.ghost,
+a.ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  text-decoration: none;
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--radius-md);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+button.ghost:hover,
+a.ghost:hover {
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+button.danger {
+  background: var(--danger);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.8rem;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  padding: 0.6rem;
+  vertical-align: middle;
+}
+
+/* Horizontal-scroll wrapper for wide/data-dense tables so long values never
+   overflow the panel and overlap the rest of the page. */
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll > table {
+  margin-top: 0;
+}
+
+/* Let long monospace values (DNs, correlation UUIDs) break instead of forcing
+   the table wider than its container. */
+td.mono {
+  overflow-wrap: anywhere;
+}
+
+.tag {
+  display: inline-block;
+  border-radius: var(--radius-pill);
+  padding: 0.15rem 0.65rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.tag.ok {
+  background: var(--tag-ok-bg);
+  color: var(--tag-ok-fg);
+}
+
+.tag.warn {
+  background: var(--tag-warn-bg);
+  color: var(--tag-warn-fg);
+}
+
+.tag.muted {
+  background: var(--panel-soft);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+
+.alert {
+  border-radius: var(--radius-md);
+  padding: 0.6rem;
+  margin: 0.6rem 0;
+}
+
+.alert.success {
+  background: var(--toast-success, #198754);
+  color: #ffffff;
+}
+
+.alert.error {
+  background: var(--toast-fail, #dc3545);
+  color: #ffffff;
+}
+
+.alert.warning {
+  background: var(--tag-warn-bg);
+  color: var(--tag-warn-fg);
+  border: 1px solid var(--tag-warn-fg);
+}
+
+.alert.info {
+  background: var(--panel-soft);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.entra-connect-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.entra-connect-banner-text { display: flex; flex-direction: column; gap: 0.15rem; }
+.entra-connect-banner-text span { color: var(--muted); font-size: 0.9rem; }
+.entra-connect-banner-actions { display: inline-flex; gap: 0.5rem; align-items: center; }
+.entra-connect-banner-actions .ghost { width: auto; margin: 0; padding: 0.4rem 0.8rem; }
+
+button.link {
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 0.9rem;
+  width: auto;
+  margin: 0;
+}
+button.link:hover { color: var(--ink); }
+
+.mono {
+  font-family: Consolas, Menlo, Monaco, monospace;
+}
+
+@media (max-width: 860px) {
+  .site-header-logo {
+    max-width: min(36vw, 160px);
+    max-height: 40px;
+  }
+
+  .grid-two {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Compact checkbox/radio rows: label wraps the input + text and aligns them. */
+label:has(> input[type="checkbox"]),
+label:has(> input[type="radio"]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  line-height: 1.3;
+  margin: 0.35rem 0;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+/* Toasts (auto-dismissing notifications) */
+/* Anchored bottom-right so they never overlap the top header or admin nav. */
+#portal-toast-root { position: fixed; bottom: 1.25rem; right: 1.25rem; top: auto; left: auto; display: flex; flex-direction: column-reverse; gap: 0.5rem; z-index: 9999; pointer-events: none; max-width: min(420px, calc(100vw - 2.5rem)); }
+.portal-toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.7rem 0.9rem; border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--panel); color: var(--ink); box-shadow: 0 6px 24px rgba(0,0,0,0.18); transform: translateY(140%); opacity: 0; transition: transform 220ms ease, opacity 220ms ease; }
+.portal-toast.portal-toast-visible { transform: translateY(0); opacity: 1; }
+.portal-toast.portal-toast-hiding { transform: translateY(140%); opacity: 0; }
+.portal-toast-body { flex: 1; line-height: 1.35; font-size: 0.9rem; word-break: break-word; }
+.portal-toast-close { background: transparent; border: none; color: inherit; font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 0 0.25rem; width: auto; margin: -0.15rem -0.25rem 0 0; opacity: 0.6; }
+.portal-toast-close:hover { opacity: 1; }
+/* Success = green and error/fail = red, with fixed colors so the meaning is
+   unambiguous regardless of the active theme (light/dark/high-contrast). The
+   exact shades are admin-configurable via branding (--toast-success/-fail). */
+.portal-toast-success { border: 1px solid var(--toast-success, #198754); border-left: 4px solid var(--toast-success, #198754); background: var(--toast-success, #198754); color: #ffffff; }
+.portal-toast-error   { border: 1px solid var(--toast-fail, #dc3545); border-left: 4px solid var(--toast-fail, #dc3545); background: var(--toast-fail, #dc3545); color: #ffffff; }
+.portal-toast-success .portal-toast-close,
+.portal-toast-error .portal-toast-close { color: #ffffff; opacity: 0.85; }
+.portal-toast-warning { border-left: 4px solid var(--tag-warn-fg); background: var(--tag-warn-bg); color: var(--tag-warn-fg); }
+.portal-toast-info    { border-left: 4px solid var(--muted); }
+@media (prefers-reduced-motion: reduce) { .portal-toast { transition: none; } }
+
+/* Accessibility */
+.skip-link { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+.skip-link:focus { position: fixed; left: 1rem; top: 1rem; width: auto; height: auto; padding: 0.5rem 0.9rem; background: var(--accent); color: #fff; border-radius: var(--radius-sm); z-index: 10000; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

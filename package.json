@@ -1,0 +1,74 @@
+{
+  "name": "groupselfservice",
+  "version": "1.0.0",
+  "description": "Web-based self-service AD group management portal for managedBy owners.",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "verify-audit": "tsx src/cli/verify-audit.ts"
+  },
+  "keywords": [],
+  "author": "ZombieCheese <me@zombiecheese.com>",
+  "license": "ISC",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "csrf-csrf": "^4.0.3",
+    "csv-stringify": "^6.7.0",
+    "dotenv": "^17.4.2",
+    "ejs": "^6.0.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "express-session": "^1.19.0",
+    "helmet": "^8.2.0",
+    "ldapts": "^8.1.8",
+    "morgan": "^1.11.0",
+    "nodemailer": "^9.0.1",
+    "session-file-store": "^1.5.0",
+    "uuid": "^14.0.0",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/ejs": "^3.1.5",
+    "@types/express": "^5.0.6",
+    "@types/express-session": "^1.19.0",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^25.9.1",
+    "@types/nodemailer": "^8.0.0",
+    "@types/session-file-store": "^1.2.6",
+    "@types/supertest": "^7.2.0",
+    "@types/uuid": "^10.0.0",
+    "eslint": "^10.4.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.3",
+    "supertest": "^7.2.2",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.60.1",
+    "vitest": "^4.1.8"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zombiecheese/groupselfservice.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zombiecheese/groupselfservice/issues"
+  },
+  "homepage": "https://github.com/zombiecheese/groupselfservice#readme"
+}

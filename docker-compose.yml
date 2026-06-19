@@ -1,0 +1,60 @@
+services:
+  app:
+    build: .
+    image: groupselfservice:latest
+    restart: unless-stopped
+    # The portal is intentionally single-instance per data directory. A PID
+    # lockfile under /app/data refuses to boot a second process against the
+    # same volume. Do not set deploy.replicas > 1 or `docker compose up
+    # --scale app=N` for N > 1.
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      # Secrets — override in a .env file or your orchestrator's secret store.
+      # In production CREDENTIAL_ENCRYPTION_KEY MUST decode as exactly 32
+      # bytes of base64 (a real AES-256 key); the startup preflight refuses
+      # anything else. Generate one with:
+      #   node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
+      CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?set CREDENTIAL_ENCRYPTION_KEY in .env}
+      SESSION_TTL_SECONDS: "28800"
+      AUTH_MODE: forms
+      SETTINGS_FILE_PATH: /app/data/portal-settings.json
+      # Optional tuning — uncomment in your .env or here as needed:
+      # MAX_GROUPS_PER_LIST: "500"
+      # MAX_MEMBERS_PER_GROUP: "999"
+      # TRUST_PROXY: "1"            # Set when running behind a reverse proxy.
+      # LOG_DIR: "/app/logs"        # Also write daily-rotated JSON log files.
+    volumes:
+      # Named volume (recommended): Docker manages ownership automatically.
+      # If you substitute a bind-mount (e.g. /host/path:/app/data), ensure
+      # the host directory is owned by UID 1000 (the container's `node` user):
+      #   sudo chown -R 1000:1000 /host/path
+      - gss-data:/app/data
+    networks:
+      - gss
+    # Compose-level healthcheck mirrors the Dockerfile HEALTHCHECK so downstream
+    # services (a reverse proxy, a metrics exporter, etc.) can wait on
+    # `condition: service_healthy` instead of racing the listener startup.
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - "-e"
+        - "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/healthz',{signal:AbortSignal.timeout(4000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    # Give the app the full production graceful-shutdown window (30s) plus a
+    # small buffer before docker SIGKILLs it. Matches SHUTDOWN_GRACE_MS in
+    # server.ts when NODE_ENV=production.
+    stop_grace_period: 35s
+
+volumes:
+  gss-data:
+
+networks:
+  gss:

@@ -1,0 +1,83 @@
+<%- include('partials/header', { title, user, isPortalAdmin: true }) %>
+
+<section class="panel">
+  <div class="row-between">
+    <h2>Entra Mail Setup Wizard</h2>
+    <a class="ghost" href="/admin/settings">Back to settings</a>
+  </div>
+  <p class="subtle">Step <%= step %> of 4 — sets up Microsoft Graph (Exchange Online) as the outbound mail provider via app-only OAuth.</p>
+
+  <% if (step === 1) { %>
+    <div class="card">
+      <h3>1. Create the app registration</h3>
+      <ol>
+        <li>Open the <a href="https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank" rel="noopener">Microsoft Entra admin center → App registrations</a>.</li>
+        <li>Click <strong>New registration</strong>.</li>
+        <li>Name it e.g. <code>Group Self Service – Mail</code>.</li>
+        <li>Supported account types: <strong>Accounts in this organizational directory only</strong>.</li>
+        <li>Leave <em>Redirect URI</em> empty (this is an app-only flow).</li>
+        <li>Click <strong>Register</strong>.</li>
+        <li>Copy the <strong>Application (client) ID</strong> and <strong>Directory (tenant) ID</strong> from the Overview page — you will paste them in step 4.</li>
+      </ol>
+      <div class="wizard-actions">
+        <a class="primary" href="/admin/wizards/entra-mail/2">Continue</a>
+      </div>
+    </div>
+  <% } else if (step === 2) { %>
+    <div class="card">
+      <h3>2. Grant Mail.Send application permission</h3>
+      <ol>
+        <li>In the new app registration, open <strong>API permissions</strong>.</li>
+        <li>Click <strong>Add a permission</strong> → <strong>Microsoft Graph</strong> → <strong>Application permissions</strong>.</li>
+        <li>Search for and select <code>Mail.Send</code>. Click <strong>Add permissions</strong>.</li>
+        <li>Click <strong>Grant admin consent for &lt;tenant&gt;</strong> and confirm.</li>
+        <li>(Recommended) Restrict the app to a single mailbox using an <a href="https://learn.microsoft.com/graph/auth-limit-mailbox-access" target="_blank" rel="noopener">application access policy</a> (<code>New-ApplicationAccessPolicy</code> in Exchange Online PowerShell).</li>
+      </ol>
+      <div class="wizard-actions">
+        <a class="ghost" href="/admin/wizards/entra-mail/1">Back</a>
+        <a class="primary" href="/admin/wizards/entra-mail/3">Continue</a>
+      </div>
+    </div>
+  <% } else if (step === 3) { %>
+    <div class="card">
+      <h3>3. Create a client secret</h3>
+      <ol>
+        <li>Open <strong>Certificates &amp; secrets</strong>.</li>
+        <li>Click <strong>New client secret</strong>, set a description and expiration, click <strong>Add</strong>.</li>
+        <li>Copy the <strong>Value</strong> immediately — it will not be shown again.</li>
+      </ol>
+      <div class="wizard-actions">
+        <a class="ghost" href="/admin/wizards/entra-mail/2">Back</a>
+        <a class="primary" href="/admin/wizards/entra-mail/4">Continue</a>
+      </div>
+    </div>
+  <% } else { %>
+    <form class="card" method="post" action="/admin/wizards/entra-mail/save">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <h3>4. Save the values</h3>
+      <p class="subtle">Saving will enable mail and switch the delivery mode to Entra (Microsoft Graph).</p>
+
+      <label for="mailEntraTenantId">Tenant ID</label>
+      <input id="mailEntraTenantId" name="mailEntraTenantId" value="<%= settings.mail.entra.tenantId %>" required />
+
+      <label for="mailEntraClientId">Client ID</label>
+      <input id="mailEntraClientId" name="mailEntraClientId" value="<%= settings.mail.entra.clientId %>" required />
+
+      <label for="mailEntraClientSecret">Client Secret</label>
+      <input id="mailEntraClientSecret" name="mailEntraClientSecret" type="password" value="<%= settings.mail.entra.clientSecret %>" required />
+
+      <label for="mailEntraSenderUpn">Sender mailbox (UPN)</label>
+      <input id="mailEntraSenderUpn" name="mailEntraSenderUpn" value="<%= settings.mail.entra.senderUpn %>" placeholder="no-reply@contoso.com" required />
+
+      <label for="mailFromAddress">From address</label>
+      <input id="mailFromAddress" name="mailFromAddress" value="<%= settings.mail.fromAddress %>" required />
+
+      <div class="wizard-actions">
+        <a class="ghost" href="/admin/wizards/entra-mail/3">Back</a>
+        <button type="submit">Finish &amp; Save</button>
+      </div>
+    </form>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>
