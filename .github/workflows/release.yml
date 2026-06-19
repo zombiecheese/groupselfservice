@@ -1,0 +1,100 @@
+name: Unified Release Pipeline
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      ############################################################
+      # STEP 1 — DETERMINE BRANCH
+      ############################################################
+      - name: Detect branch
+        id: branch
+        run: echo "branch=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
+
+      ############################################################
+      # STEP 2 — GET LATEST TAG (dev or prod)
+      ############################################################
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          if [ "${{ steps.branch.outputs.branch }}" = "dev" ]; then
+            tag=$(git describe --tags --match "dev-v*" --abbrev=0 2>/dev/null || echo "dev-v0.0.0")
+          else
+            tag=$(git describe --tags --match "dev-v*" --abbrev=0 2>/dev/null || echo "dev-v0.0.0")
+          fi
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+
+      ############################################################
+      # STEP 3 — BUMP VERSION
+      ############################################################
+      - name: Bump version
+        id: bump
+        run: |
+          old=${{ steps.get_tag.outputs.tag }}
+          IFS='.' read -r major minor patch <<< "${old#dev-v}"
+          new_patch=$((patch+1))
+
+          if [ "${{ steps.branch.outputs.branch }}" = "dev" ]; then
+            new="dev-v$major.$minor.$new_patch"
+          else
+            new="v$major.$minor.$new_patch"
+          fi
+
+          echo "new_tag=$new" >> $GITHUB_OUTPUT
+
+      ############################################################
+      # STEP 4 — CREATE TAG
+      ############################################################
+      - name: Create tag
+        run: |
+          git tag ${{ steps.bump.outputs.new_tag }}
+          git push origin ${{ steps.bump.outputs.new_tag }}
+
+      ############################################################
+      # STEP 5 — CREATE RELEASE (dev = prerelease, main = full)
+      ############################################################
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.bump.outputs.new_tag }}
+          name: ${{ steps.bump.outputs.new_tag }}
+          prerelease: ${{ steps.branch.outputs.branch == 'dev' }}
+
+      ############################################################
+      # STEP 6 — DOCKER BUILD & PUSH
+      ############################################################
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ steps.branch.outputs.branch == 'dev' && 'dev' || 'latest' }}
+            ghcr.io/${{ github.repository }}:${{ steps.bump.outputs.new_tag }}
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
