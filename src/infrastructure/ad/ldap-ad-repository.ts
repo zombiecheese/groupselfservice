@@ -230,10 +230,6 @@ export class LdapAdRepository implements AdDirectoryRepository {
   private readonly POOL_MAX_PER_KEY = 4;
   private readonly POOL_IDLE_TTL_MS = 5 * 60_000; // 5 minutes
   private poolSweeper?: NodeJS.Timeout;
-  // Per-process random salt so password-hash pool keys can't be precomputed
-  // from a memory dump alone — a snapshot still leaks the keyed clients in
-  // memory, but the keys themselves are not lookup-able offline.
-  private readonly poolKeySalt = crypto.randomBytes(16);
 
   constructor(
     private readonly ldapUrl: string,
@@ -247,18 +243,15 @@ export class LdapAdRepository implements AdDirectoryRepository {
     this.poolSweeper.unref();
   }
 
-  // Stable, non-reversible pool key. We never store passwords plain in
-  // the map; the key is HMAC(saltKey, "username\0password") truncated.
+  // The pool key is built from the session's opaque poolToken — a random UUID
+  // assigned at login and stored in the encrypted session. It contains no
+  // password material, so no KDF is needed and a memory snapshot of the pool
+  // map reveals nothing about user credentials.
   private poolKey(credentials?: DirectorySessionCredentials): string {
-    const url = this.ldapUrl;
-    if (!credentials?.username || !credentials.password) {
-      return `${url}|anon`;
+    if (!credentials?.username || !credentials.poolToken) {
+      return `${this.ldapUrl}|anon`;
     }
-    const h = crypto.createHmac("sha256", this.poolKeySalt);
-    h.update(credentials.username, "utf-8");
-    h.update("\0");
-    h.update(credentials.password, "utf-8");
-    return `${url}|u:${credentials.username.toLowerCase()}|p:${h.digest("hex").slice(0, 32)}`;
+    return `${this.ldapUrl}|u:${credentials.username.toLowerCase()}|t:${credentials.poolToken}`;
   }
 
   private async createClient(): Promise<Client> {
