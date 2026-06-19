@@ -1,0 +1,180 @@
+<%- include('partials/header', { title, user }) %>
+
+<link rel="stylesheet" href="/groups.css?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '0' %>" />
+
+<section class="panel">
+  <div class="row-between">
+    <h2>Managed Groups</h2>
+  </div>
+
+  <% if ((typeof previousLogin !== 'undefined' && previousLogin) || (typeof otherSessionsCount !== 'undefined' && otherSessionsCount > 0)) { %>
+    <div class="session-info">
+      <% if (previousLogin) { %>
+        <span class="session-info-item">
+          <strong>Last sign-in:</strong>
+          <%= new Date(previousLogin.timestamp).toLocaleString() %>
+          <% if (previousLogin.ip) { %>from <span class="mono"><%= previousLogin.ip %></span><% } %>
+        </span>
+      <% } %>
+      <% if (otherSessionsCount > 0) { %>
+        <span class="session-info-item">
+          <strong><%= otherSessionsCount %></strong> other active <%= otherSessionsCount === 1 ? 'session' : 'sessions' %>
+          <form method="post" action="/auth/sign-out-others" class="inline-form" data-confirm="Sign out all other active sessions for your account?">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+            <button type="submit" class="link">Sign them out</button>
+          </form>
+        </span>
+      <% } %>
+    </div>
+  <% } %>
+
+  <% if (typeof entraConnectBannerVisible !== 'undefined' && entraConnectBannerVisible) { %>
+    <div class="alert info entra-connect-banner">
+      <div class="entra-connect-banner-text">
+        <strong>Also see your Entra ID groups?</strong>
+        <span>Sign in to Microsoft Entra ID to view and manage your Entra-owned groups.</span>
+      </div>
+      <div class="entra-connect-banner-actions">
+        <a class="ghost" href="/auth/entra/start">Connect Entra ID</a>
+        <form method="post" action="/auth/entra/dismiss-banner" class="inline-form">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <button type="submit" class="link">Not now</button>
+        </form>
+      </div>
+    </div>
+  <% } %>
+
+  <% if (!groups.length) { %>
+    <p>No managed groups found. Verify managedBy ownership in AD or owner assignments in Entra ID.</p>
+  <% } else { %>
+    <div class="groups-toolbar">
+      <input type="search" id="groupsFilter" placeholder="Filter by name or description..." autocomplete="off" />
+      <label class="inline-control">Source
+        <select id="groupsSourceFilter">
+          <option value="all">All</option>
+          <option value="ad">Active Directory</option>
+          <option value="entra">Entra ID</option>
+        </select>
+      </label>
+      <label class="inline-control">Sort
+        <select id="groupsSort">
+          <option value="name-asc">Name (A&ndash;Z)</option>
+          <option value="name-desc">Name (Z&ndash;A)</option>
+          <option value="source">Source</option>
+          <option value="type">Type</option>
+          <option value="ownership">Ownership</option>
+        </select>
+      </label>
+      <span class="subtle" id="groupsCount" data-total="<%= groups.length %>"><%= groups.length %> groups</span>
+    </div>
+
+    <div class="table-scroll">
+    <table id="groupsTable">
+      <thead>
+        <tr>
+          <th class="favorite-col" aria-label="Favorite"><span aria-hidden="true">&#9734;</span></th>
+          <th data-sort-key="name">Group</th>
+          <th data-sort-key="source">Source</th>
+          <th data-sort-key="type">Type</th>
+          <th data-sort-key="ownership">Ownership</th>
+          <th>Description</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% groups.forEach((item) => { %>
+          <tr
+            data-group-row
+            data-group-dn="<%= item.group.dn %>"
+            data-source="<%= item.source %>"
+            data-ownership="<%= item.ownerType %>"
+            data-type="<%= (item.group.groupType || '').toLowerCase() %>"
+            data-name="<%= (item.group.name || '').toLowerCase() %>"
+            data-description="<%= (item.group.description || '').toLowerCase() %>">
+            <td class="favorite-col">
+              <button type="button" class="favorite-btn" data-favorite-toggle aria-label="Toggle favorite" aria-pressed="false" title="Pin this group to the top">
+                <span aria-hidden="true" class="favorite-icon">&#9734;</span>
+              </button>
+            </td>
+            <td>
+              <div class="group-name-cell">
+                <span class="group-name"><%= item.group.name %></span>
+                <span class="group-member-count" data-member-count aria-live="polite"></span>
+              </div>
+            </td>
+            <td>
+              <span class="tag <%= item.source === 'entra' ? 'warn' : 'ok' %>">
+                <%= item.source === 'entra' ? 'Entra ID' : 'Active Directory' %>
+              </span>
+            </td>
+            <td>
+              <% if (item.group.groupType) { %>
+                <span class="tag muted"><%= item.group.groupType %></span>
+              <% } else { %>
+                <span class="subtle">&mdash;</span>
+              <% } %>
+            </td>
+            <td>
+              <span class="tag <%= item.ownerType === 'nested' ? 'warn' : 'ok' %>">
+                <%= item.ownerType === 'nested' ? 'Nested Owner Group' : (item.ownerType === 'entra-owned' ? 'Owned Object' : 'Direct managedBy') %>
+              </span>
+            </td>
+            <td><%= item.group.description || '' %></td>
+            <td>
+              <% if (item.source === 'ad' || (item.source === 'entra' && (typeof entraWritesEnabled !== 'undefined' && entraWritesEnabled))) { %>
+                <button type="button" class="ghost"
+                  data-manage-group
+                  data-group-source="<%= item.source %>"
+                  data-group-dn="<%= item.group.dn %>"
+                  data-group-name="<%= item.group.name %>">Manage</button>
+              <% } else if (item.source === 'entra') { %>
+                <span class="subtle">Read-only (admin disabled member writes)</span>
+              <% } else { %>
+                <span class="subtle">Read-only</span>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+
+    <p class="subtle" id="groupsEmptyState" hidden>No groups match your filter.</p>
+  <% } %>
+</section>
+
+<div class="modal-backdrop" data-group-modal hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="groupModalTitle">
+    <header class="modal-header">
+      <h3 id="groupModalTitle">Manage members</h3>
+      <button type="button" class="modal-close" data-modal-close aria-label="Close">&times;</button>
+    </header>
+    <p class="subtle modal-subtitle" data-modal-subtitle></p>
+
+    <div class="modal-status" data-modal-status hidden></div>
+
+    <section class="modal-section">
+      <h4>Add member</h4>
+      <div class="search-row">
+        <input type="text" data-modal-search placeholder="Search by name, UPN, or sAMAccountName" autocomplete="off" />
+      </div>
+      <ul class="search-results" data-modal-search-results></ul>
+    </section>
+
+    <section class="modal-section">
+      <div class="modal-section-header">
+        <h4>Current members <span class="member-count" data-modal-count></span></h4>
+        <input type="search" class="modal-member-filter" data-modal-member-filter placeholder="Filter members..." autocomplete="off" hidden />
+      </div>
+      <div class="member-list-wrap">
+        <ul class="member-list" data-modal-member-list>
+          <li class="subtle">Loading…</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="/groups.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '0' %>" defer></script>
+
+<%- include('partials/footer') %>

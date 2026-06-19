@@ -1,0 +1,55 @@
+<!doctype html>
+<% var siteName = (typeof branding !== 'undefined' && branding && branding.siteName) ? branding.siteName : 'Group Self Service'; %>
+<% var headerTitle = (typeof branding !== 'undefined' && branding && branding.headerTitle) ? branding.headerTitle : siteName; %>
+<% var themeMode = (typeof branding !== 'undefined' && branding && branding.themeMode) ? branding.themeMode : 'auto'; %>
+<% var themePrimary = (typeof branding !== 'undefined' && branding && branding.themePrimary) ? branding.themePrimary : '#0d9488'; %>
+<% var themeSecondary = (typeof branding !== 'undefined' && branding && branding.themeSecondary) ? branding.themeSecondary : '#7c3aed'; %>
+<% var notifySuccess = (typeof branding !== 'undefined' && branding && branding.notificationSuccessColor) ? branding.notificationSuccessColor : '#198754'; %>
+<% var notifyFail = (typeof branding !== 'undefined' && branding && branding.notificationFailColor) ? branding.notificationFailColor : '#dc3545'; %>
+<% var logoDataUrl = (typeof branding !== 'undefined' && branding && branding.logoDataUrl) ? branding.logoDataUrl : ''; %>
+<% var hex = /^#[0-9a-fA-F]{6}$/; %>
+<% if (!hex.test(themePrimary)) { themePrimary = '#0d9488'; } %>
+<% if (!hex.test(themeSecondary)) { themeSecondary = '#7c3aed'; } %>
+<% if (!hex.test(notifySuccess)) { notifySuccess = '#198754'; } %>
+<% if (!hex.test(notifyFail)) { notifyFail = '#dc3545'; } %>
+<% if (['auto','light','dark'].indexOf(themeMode) < 0) { themeMode = 'auto'; } %>
+<html lang="en" data-theme="<%= themeMode %>" style="--accent: <%= themePrimary %>; --accent-2: <%= themeSecondary %>; --toast-success: <%= notifySuccess %>; --toast-fail: <%= notifyFail %>;">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %> | <%= siteName %></title>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
+    <link rel="stylesheet" href="/styles.css?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '0' %>" />
+    <script src="/toast.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '0' %>" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <header class="site-header">
+      <div class="site-header-brand">
+        <% if (logoDataUrl) { %>
+          <img class="site-header-logo" src="<%= logoDataUrl %>" alt="<%= siteName %> logo" />
+        <% } %>
+        <h1><%= headerTitle %></h1>
+      </div>
+      <% if (typeof user !== 'undefined' && user) { %>
+        <div class="site-header-user">
+          <p class="subtle site-header-identity">
+            Signed in as <strong><%= user.displayName %></strong>
+            <span class="muted">(<%= user.samAccountName %>)</span>
+          </p>
+          <div class="site-header-actions">
+            <% if (typeof isPortalAdmin !== 'undefined' && isPortalAdmin) { %>
+              <a class="ghost" href="/admin/settings">Admin Settings</a>
+              <% if (typeof auditEnabled !== 'undefined' && auditEnabled) { %>
+                <a class="ghost" href="/admin/audit">Audit Log</a>
+              <% } %>
+            <% } %>
+            <form method="post" action="/auth/logout" class="inline-form">
+              <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
+              <button type="submit" class="ghost">Sign out</button>
+            </form>
+          </div>
+        </div>
+      <% } %>
+    </header>
+    <main class="page" id="main-content">

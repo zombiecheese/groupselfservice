@@ -1,0 +1,82 @@
+<%- include('partials/header', { title }) %>
+
+<section class="panel">
+  <div class="row-between">
+    <h2>Members</h2>
+    <a class="ghost" href="/groups">Back to groups</a>
+  </div>
+  <p class="subtle"><strong>Group DN:</strong> <%= groupDn %></p>
+
+  <div class="grid-two">
+    <form method="post" action="/groups/members/add" class="card">
+      <h3>Add Member</h3>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <input type="hidden" name="groupDn" value="<%= groupDn %>" />
+      <label for="memberDn">Member DN</label>
+      <input id="memberDn" name="memberDn" required />
+      <button type="submit">Add</button>
+    </form>
+
+    <form method="post" action="/groups/members/remove" class="card">
+      <h3>Remove Member</h3>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <input type="hidden" name="groupDn" value="<%= groupDn %>" />
+      <label for="memberDnRemove">Member DN</label>
+      <input id="memberDnRemove" name="memberDn" required />
+      <button type="submit" class="danger">Remove</button>
+    </form>
+  </div>
+
+  <div class="grid-two">
+    <form method="post" action="/groups/members/bulk-add" class="card">
+      <h3>Bulk Add</h3>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <input type="hidden" name="groupDn" value="<%= groupDn %>" />
+      <label for="bulkAdd">One member DN per line</label>
+      <textarea id="bulkAdd" name="memberDns" rows="6"></textarea>
+      <button type="submit">Run bulk add</button>
+    </form>
+
+    <form method="post" action="/groups/members/bulk-remove" class="card">
+      <h3>Bulk Remove</h3>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <input type="hidden" name="groupDn" value="<%= groupDn %>" />
+      <label for="bulkRemove">One member DN per line</label>
+      <textarea id="bulkRemove" name="memberDns" rows="6"></textarea>
+      <button type="submit" class="danger">Run bulk remove</button>
+    </form>
+  </div>
+
+  <p><a href="/groups/members/export?groupDn=<%= encodeURIComponent(groupDn) %>">Export CSV</a></p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Display Name</th>
+        <th>SAM</th>
+        <th>UPN</th>
+        <th>Email</th>
+        <th>Source</th>
+        <th>Reference</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% members.forEach((member) => { %>
+        <tr>
+          <td><%= member.displayName || '' %></td>
+          <td><%= member.samAccountName || '' %></td>
+          <td><%= member.userPrincipalName || '' %></td>
+          <td><%= member.mail || '' %></td>
+          <td>
+            <span class="tag <%= member.source === 'entra' ? 'warn' : 'ok' %>">
+              <%= member.source === 'entra' ? 'Entra ID' : 'Active Directory' %>
+            </span>
+          </td>
+          <td class="mono"><%= member.ref || member.dn || '' %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</section>
+
+<%- include('partials/footer') %>

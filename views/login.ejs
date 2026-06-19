@@ -1,0 +1,22 @@
+<%- include('partials/header', { title }) %>
+
+<section class="panel narrow">
+  <h2>Sign In</h2>
+  <% if (typeof setupMode !== 'undefined' && setupMode) { %>
+    <p class="subtle">No directory integration is configured yet. Sign in with the break-glass admin account to complete initial setup, then enable Active Directory or Entra ID from Admin Settings.</p>
+  <% } %>
+  <% if (error) { %>
+    <div class="alert error"><%= error %></div>
+  <% } %>
+
+  <form method="post" action="/auth/login">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <label for="username">Username</label>
+    <input id="username" name="username" type="text" autocomplete="username" required />
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required />
+    <button type="submit">Sign in</button>
+  </form>
+</section>
+
+<%- include('partials/footer') %>

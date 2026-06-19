@@ -1,0 +1,13 @@
+<%- include('partials/header', { title }) %>
+
+<section class="panel narrow">
+  <h2><%= title %></h2>
+  <p><%= message %></p>
+  <p class="subtle">Correlation ID: <span class="mono"><%= correlationId %></span></p>
+  <% if (typeof actionHref === 'string' && typeof actionLabel === 'string' && actionHref.startsWith('/')) { %>
+    <p><a class="ghost" href="<%= actionHref %>"><%= actionLabel %></a></p>
+  <% } %>
+  <p><a href="/groups">Return to groups</a></p>
+</section>
+
+<%- include('partials/footer') %>

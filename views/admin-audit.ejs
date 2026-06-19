@@ -1,0 +1,139 @@
+<%- include('partials/header', { title, user, isPortalAdmin: true }) %>
+
+<link rel="stylesheet" href="/admin-settings.css?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '0' %>" />
+<meta name="csrf-token" content="<%= csrfToken %>" />
+
+<section class="panel">
+  <div class="row-between">
+    <h2>Audit Log</h2>
+    <div>
+      <a class="ghost" href="/admin/settings">Back to settings</a>
+      <a class="ghost" href="<%= csvHref %>">Export CSV</a>
+    </div>
+  </div>
+
+  <% if (typeof error !== 'undefined' && error) { %>
+    <div class="alert error"><%= error %></div>
+  <% } %>
+
+  <form method="get" action="/admin/audit" class="audit-filter card">
+    <div class="grid-two">
+      <div>
+        <label for="auditFrom">From</label>
+        <input id="auditFrom" name="from" type="datetime-local"
+          value="<%= new Date(params.fromIso).toISOString().slice(0,16) %>" />
+      </div>
+      <div>
+        <label for="auditTo">To</label>
+        <input id="auditTo" name="to" type="datetime-local"
+          value="<%= new Date(params.toIso).toISOString().slice(0,16) %>" />
+      </div>
+    </div>
+    <div class="grid-two">
+      <div>
+        <label for="auditActor">Actor contains</label>
+        <input id="auditActor" name="actor" value="<%= params.actorContains || '' %>" placeholder="UPN or sAMAccountName substring" />
+      </div>
+      <div>
+        <label for="auditGroup">Group DN contains</label>
+        <input id="auditGroup" name="group" value="<%= params.groupContains || '' %>" placeholder="e.g. OU=HR or entra:..." />
+      </div>
+    </div>
+    <div class="grid-two">
+      <div>
+        <label for="auditAction">Action</label>
+        <select id="auditAction" name="action">
+          <option value="">(any)</option>
+          <% var actions = ['GROUP_LIST','GROUP_VIEW_MEMBERS','GROUP_ADD_MEMBER','GROUP_REMOVE_MEMBER','GROUP_BULK_ADD','GROUP_BULK_REMOVE','GROUP_EXPORT_MEMBERS']; %>
+          <% actions.forEach(function (a) { %>
+            <option value="<%= a %>" <%= params.actionEquals === a ? 'selected' : '' %>><%= a %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div>
+        <label for="auditSource">Source</label>
+        <select id="auditSource" name="source">
+          <option value="">(any)</option>
+          <option value="ad" <%= params.sourceEquals === 'ad' ? 'selected' : '' %>>Active Directory</option>
+          <option value="entra" <%= params.sourceEquals === 'entra' ? 'selected' : '' %>>Entra ID</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid-two">
+      <div>
+        <label for="auditStatus">Status</label>
+        <select id="auditStatus" name="status">
+          <option value="">(any)</option>
+          <option value="success" <%= params.statusEquals === 'success' ? 'selected' : '' %>>success</option>
+          <option value="failure" <%= params.statusEquals === 'failure' ? 'selected' : '' %>>failure</option>
+        </select>
+      </div>
+      <div>
+        <label for="auditLimit">Limit</label>
+        <input id="auditLimit" name="limit" type="number" min="1" max="1000" value="<%= Math.min(params.limit, 1000) %>" />
+      </div>
+    </div>
+    <div class="save-row">
+      <button type="submit">Apply filters</button>
+      <a class="ghost" href="/admin/audit">Reset</a>
+    </div>
+  </form>
+
+  <p class="subtle">
+    Showing <strong><%= records.length %></strong> record<%= records.length === 1 ? '' : 's' %> between
+    <%= new Date(params.fromIso).toLocaleString() %> and
+    <%= new Date(params.toIso).toLocaleString() %>.
+    <% if (records.length >= Math.min(params.limit, 1000)) { %>
+      Page cap reached — narrow the window or lower the limit to see older entries, or use <a href="<%= csvHref %>">CSV export</a>.
+    <% } %>
+  </p>
+
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Time (UTC)</th>
+          <th>Actor</th>
+          <th>Action</th>
+          <th>Source</th>
+          <th>Status</th>
+          <th>Group</th>
+          <th>Member</th>
+          <th>Details</th>
+          <th>Correlation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!records.length) { %>
+          <tr><td colspan="9" class="subtle">No audit records match these filters.</td></tr>
+        <% } %>
+        <% records.forEach(function (r) { %>
+          <tr>
+            <td class="mono"><%= r.timestampUtc %></td>
+            <td>
+              <strong><%= r.actorSamAccountName %></strong>
+              <% if (r.actorUpn && r.actorUpn !== r.actorSamAccountName) { %><br><span class="subtle"><%= r.actorUpn %></span><% } %>
+            </td>
+            <td><%= r.action %></td>
+            <td>
+              <% if (r.source) { %>
+                <span class="tag <%= r.source === 'entra' ? 'warn' : 'ok' %>"><%= r.source === 'entra' ? 'Entra' : 'AD' %></span>
+              <% } else { %>
+                <span class="subtle">&mdash;</span>
+              <% } %>
+            </td>
+            <td>
+              <span class="tag <%= r.status === 'success' ? 'ok' : 'warn' %>"><%= r.status %></span>
+            </td>
+            <td class="mono"><%= r.targetGroupDn || '' %></td>
+            <td class="mono"><%= r.targetMemberDn || '' %></td>
+            <td><%= r.details || '' %></td>
+            <td class="mono subtle"><%= r.correlationId %></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

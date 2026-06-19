@@ -1,0 +1,90 @@
+<%- include('partials/header', { title, user, isPortalAdmin: true }) %>
+
+<section class="panel">
+  <div class="row-between">
+    <h2>Entra Directory Setup Wizard</h2>
+    <a class="ghost" href="/admin/settings">Back to settings</a>
+  </div>
+  <p class="subtle">Step <%= step %> of 4 — registers an Entra application so the portal can read users and groups owned by the signed-in user.</p>
+
+  <% if (step === 1) { %>
+    <div class="card">
+      <h3>1. Create the app registration</h3>
+      <ol>
+        <li>Open the <a href="https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank" rel="noopener">Microsoft Entra admin center → App registrations</a>.</li>
+        <li>Click <strong>New registration</strong>.</li>
+        <li>Name it e.g. <code>Group Self Service – Directory</code>.</li>
+        <li>Supported account types: <strong>Accounts in this organizational directory only</strong>.</li>
+        <li>Under <em>Redirect URI</em>, choose <strong>Web</strong> and enter:
+          <pre><%= settings.entra.redirectUri || 'https://your-portal.example.com/auth/entra/callback' %></pre>
+        </li>
+        <li>Click <strong>Register</strong>. Copy the <strong>Application (client) ID</strong> and <strong>Directory (tenant) ID</strong>.</li>
+      </ol>
+      <div class="wizard-actions">
+        <a class="primary" href="/admin/wizards/entra-directory/2">Continue</a>
+      </div>
+    </div>
+  <% } else if (step === 2) { %>
+    <div class="card">
+      <h3>2. Configure delegated Microsoft Graph permissions</h3>
+      <ol>
+        <li>Open <strong>API permissions</strong> on the new app.</li>
+        <li>Click <strong>Add a permission</strong> → <strong>Microsoft Graph</strong> → <strong>Delegated permissions</strong>.</li>
+        <li>Add the following:
+          <ul>
+            <li><code>User.Read</code></li>
+            <li><code>Group.Read.All</code></li>
+            <li><code>GroupMember.Read.All</code></li>
+            <li><code>Directory.Read.All</code> (optional, for richer lookups)</li>
+          </ul>
+        </li>
+        <li>Click <strong>Grant admin consent for &lt;tenant&gt;</strong> and confirm.</li>
+      </ol>
+      <div class="wizard-actions">
+        <a class="ghost" href="/admin/wizards/entra-directory/1">Back</a>
+        <a class="primary" href="/admin/wizards/entra-directory/3">Continue</a>
+      </div>
+    </div>
+  <% } else if (step === 3) { %>
+    <div class="card">
+      <h3>3. Configure authentication and create a client secret</h3>
+      <ol>
+        <li>Open <strong>Authentication</strong> and confirm the redirect URI matches the portal callback.</li>
+        <li>Disable <em>ID tokens</em> and <em>Access tokens</em> implicit grants (this app uses Authorization Code + PKCE).</li>
+        <li>Open <strong>Certificates &amp; secrets</strong> → <strong>New client secret</strong>. Save the <strong>Value</strong>.</li>
+      </ol>
+      <div class="wizard-actions">
+        <a class="ghost" href="/admin/wizards/entra-directory/2">Back</a>
+        <a class="primary" href="/admin/wizards/entra-directory/4">Continue</a>
+      </div>
+    </div>
+  <% } else { %>
+    <form class="card" method="post" action="/admin/wizards/entra-directory/save">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <h3>4. Save the values</h3>
+      <p class="subtle">Saving will enable Entra integration for the portal.</p>
+
+      <label for="entraTenantId">Tenant ID</label>
+      <input id="entraTenantId" name="entraTenantId" value="<%= settings.entra.tenantId %>" required />
+
+      <label for="entraClientId">Client ID</label>
+      <input id="entraClientId" name="entraClientId" value="<%= settings.entra.clientId %>" required />
+
+      <label for="entraClientSecret">Client Secret</label>
+      <input id="entraClientSecret" name="entraClientSecret" type="password" value="<%= settings.entra.clientSecret %>" required />
+
+      <label for="entraScope">Scope</label>
+      <input id="entraScope" name="entraScope" value="<%= settings.entra.scope || 'openid profile offline_access User.Read Group.Read.All GroupMember.Read.All' %>" />
+
+      <label for="entraRedirectUri">Redirect URI</label>
+      <input id="entraRedirectUri" name="entraRedirectUri" value="<%= settings.entra.redirectUri %>" required />
+
+      <div class="wizard-actions">
+        <a class="ghost" href="/admin/wizards/entra-directory/3">Back</a>
+        <button type="submit">Finish &amp; Save</button>
+      </div>
+    </form>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>
