@@ -1,0 +1,2 @@
+# Keep main workflows authoritative
+.github/workflows/* merge=ours
