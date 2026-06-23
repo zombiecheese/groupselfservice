@@ -602,7 +602,6 @@ async function start(): Promise<void> {
       process.getuid() !== 0
     ) {
       logger.warn("HTTP redirect port may require elevated bind permissions", {
-        port: settings.webTls.redirectHttpPort,
         platform: process.platform,
         hint: "Use a higher port or grant CAP_NET_BIND_SERVICE to the process.",
       });
@@ -620,7 +619,6 @@ async function start(): Promise<void> {
 
     redirectServer.listen(settings.webTls.redirectHttpPort, () => {
       logger.info("HTTP redirect server started", {
-        port: settings.webTls.redirectHttpPort,
         targetPort: config.PORT,
       });
     });

@@ -31,7 +31,7 @@ export class PortalAdminAuthorizationService {
       try {
         return await this.adRepository.isUserMemberOfGroup(user, dn, directoryCredentials);
       } catch (err) {
-        logger.warn("admin-check: AD membership lookup failed", { dn, err: (err as Error).message });
+        logger.warn("admin-check: AD membership lookup failed", { err: (err as Error).message });
         return false;
       }
     });
@@ -40,7 +40,7 @@ export class PortalAdminAuthorizationService {
           try {
             return await this.entraRepository.isUserMemberOfGroup(entraAccessToken, id);
           } catch (err) {
-            logger.warn("admin-check: Entra membership lookup failed", { id, err: (err as Error).message });
+            logger.warn("admin-check: Entra membership lookup failed", { err: (err as Error).message });
             return false;
           }
         })
