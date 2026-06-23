@@ -9,7 +9,7 @@ Web-based self-service group management portal that combines ownership visibilit
 - **[CHANGELOG.md](CHANGELOG.md)** — release history.
 
 ## Feature coverage
-
+ 
 ### Authentication & access control
 - Forms login with username + password against Active Directory (per-user LDAP bind — no shared service account).
 - Login form copy adapts to deployment state: a *"No directory integration is configured yet"* hint appears only when both AD and Entra are disabled (first-run / fresh install).
