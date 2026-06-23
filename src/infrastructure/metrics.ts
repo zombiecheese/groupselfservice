@@ -14,6 +14,14 @@ export interface LatencyStats {
   lastSampleAt: string | null;
 }
 
+export interface CacheStats {
+  hits: number;
+  misses: number;
+  total: number;
+  hitRatePct: number | null;
+  lastEventAt: string | null;
+}
+
 class LatencyTracker {
   private samples: number[] = [];
   private lastSampleAt: Date | null = null;
@@ -59,4 +67,32 @@ class LatencyTracker {
   }
 }
 
+class CacheTracker {
+  private hits = 0;
+  private misses = 0;
+  private lastEventAt: Date | null = null;
+
+  hit(): void {
+    this.hits += 1;
+    this.lastEventAt = new Date();
+  }
+
+  miss(): void {
+    this.misses += 1;
+    this.lastEventAt = new Date();
+  }
+
+  stats(): CacheStats {
+    const total = this.hits + this.misses;
+    return {
+      hits: this.hits,
+      misses: this.misses,
+      total,
+      hitRatePct: total > 0 ? Math.round((this.hits / total) * 10_000) / 100 : null,
+      lastEventAt: this.lastEventAt ? this.lastEventAt.toISOString() : null,
+    };
+  }
+}
+
 export const groupListLatency = new LatencyTracker();
+export const settingsCache = new CacheTracker();

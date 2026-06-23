@@ -197,8 +197,12 @@ const sessionsDir = path.join(path.dirname(config.SETTINGS_FILE_PATH), "sessions
 const sessionStore = new FileStore({
   path: sessionsDir,
   ttl: config.SESSION_TTL_SECONDS,
-  // Sweep expired session files every 15 minutes (in seconds).
-  reapInterval: 15 * 60,
+  // Sweep expired session files once per hour. 15 minutes is aggressive on
+  // network-attached storage (EFS/NFS) where a directory readdir+unlink sweep
+  // consumes burst I/O credits and adds measurable latency to concurrent
+  // requests. Session expiry is enforced on read by the TTL check regardless
+  // of whether the file has been reaped, so a longer interval is safe.
+  reapInterval: 60 * 60,
   // Keep the on-disk format opaque; logs go to our winston logger.
   logFn: (msg: string) => logger.warn("session-file-store", { message: msg }),
   fileExtension: ".json",
@@ -305,7 +309,17 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 app.use(doubleCsrfProtection);
-app.use(express.static(path.join(__dirname, "..", "public")));
+app.use(express.static(path.join(__dirname, "..", "public"), {
+  // Assets are served with a cache-busting version stamp appended as
+  // ?v=<ASSET_VERSION> (set at startup and used in every <link>/<script>
+  // tag). Each new deploy produces a unique stamp, so browsers and CDN
+  // edges treat the URL as a brand-new resource. 'immutable' tells the
+  // browser it never needs to revalidate this URL — the stamp changes
+  // instead. Combined, this gives zero-latency repeat loads without any
+  // risk of serving stale CSS/JS after a deploy.
+  maxAge: "1y",
+  immutable: true,
+}));
 
 app.use((req: Request, _res: Response, next: NextFunction) => {
   req.correlationId = req.header("x-correlation-id") ?? crypto.randomUUID();
@@ -348,6 +362,9 @@ app.use(asyncHandler(async (req, res, next) => {
   }
   try {
     const settings = await settingsService.getSettings();
+    // Stash the full settings object for reuse by route handlers within this
+    // request (e.g. groups page) so they don't need a second repository read.
+    res.locals.settings = settings;
     res.locals.branding = settings.branding;
     res.locals.auditEnabled = settings.audit?.enabled === true;
   } catch {

@@ -10,7 +10,7 @@ import { PortalAdminAuthorizationService } from "../../application/portal-admin-
 import { PortalSettingsService } from "../../application/portal-settings-service";
 import { buildLdapTlsOptions, pickReachableHost } from "../../infrastructure/ad/ldap-ad-repository";
 import { logger } from "../../infrastructure/logger";
-import { groupListLatency } from "../../infrastructure/metrics";
+import { groupListLatency, settingsCache } from "../../infrastructure/metrics";
 import { asyncHandler } from "../async-handler";
 import { requireAuth } from "../auth-middleware";
 import { getDirectoryCredentials, getEntraAccessToken } from "../session-directory-credentials";
@@ -610,6 +610,7 @@ export function createAdminRoutes(
       mail,
       metrics: {
         groupList: groupListLatency.stats(),
+        settingsCache: settingsCache.stats(),
             },
     });
   }));
