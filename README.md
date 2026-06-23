@@ -76,7 +76,7 @@ Web-based self-service group management portal that combines ownership visibilit
 - Optional syslog forwarding (RFC 3164) for SIEM ingestion.
 
 ### Observability
-- `/healthz` is a **public** liveness probe (returns `{ ok: true, uptimeSeconds }`) suitable for load balancers and container orchestrators. The Dockerfile `HEALTHCHECK` uses it.
+- `/healthz` is a **public** liveness probe that returns HTTP `204 No Content` on success. It is mounted as an early fast path, so probes bypass session, CSRF, and settings-loading middleware. The Dockerfile `HEALTHCHECK` uses it.
 - `/admin/health` returns a JSON snapshot used by the Health Status tab. Same probes can be hit directly for monitoring (admin-authenticated).
 - Initial-groups-list latency is sampled in process (most recent 200 renders); resets on restart.
 - All HTTP requests are logged as JSON via winston (method, path, status, duration, content length, correlation id, IP, actor, user-agent) so a SIEM can ingest without per-line parsing. Logs go to stdout by default; set `LOG_DIR` to also write daily-rotated files (20 MB / 14 days / gzipped) for bare-metal installs.

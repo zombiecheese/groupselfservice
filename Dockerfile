@@ -63,7 +63,7 @@ USER node
 EXPOSE 3000
 VOLUME ["/app/data"]
 
-# Public unauthenticated liveness probe. Returns {"ok":true} with HTTP 200.
+# Public unauthenticated liveness probe. Returns HTTP 204 on success.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/healthz',{signal:AbortSignal.timeout(4000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
 
