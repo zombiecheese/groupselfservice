@@ -47,6 +47,12 @@ const ASSET_VERSION = `${Date.now().toString(36)}-${crypto.randomBytes(3).toStri
 // on req.ip / req.secure (rate limiter, session cookie defaults, helmet HSTS).
 app.set("trust proxy", resolveTrustProxy(process.env.TRUST_PROXY || "false"));
 
+// Public liveness probe fast path. Keep this ahead of cookie/session/CSRF
+// and settings-loading middleware so orchestrator probes are effectively free.
+app.get("/healthz", (_req, res) => {
+  res.status(204).end();
+});
+
 app.set("view engine", "ejs");
 // Anchor to __dirname (always the compiled dist/ directory) rather than
 // process.cwd() so the app works regardless of what directory the container
@@ -421,14 +427,6 @@ const auditViewerLimiter = rateLimit({
   legacyHeaders: false,
 });
 app.use(["/admin/audit", "/admin/audit.csv"], auditViewerLimiter);
-
-// Public liveness probe. Deliberately unauthenticated and free of internal
-// detail: a load balancer, container orchestrator, or uptime monitor needs
-// only to know whether the process is responding. The admin Health Status
-// tab (/admin/health) carries the detailed snapshot and stays admin-gated.
-app.get("/healthz", (_req, res) => {
-  res.status(200).json({ ok: true, uptimeSeconds: Math.round(process.uptime()) });
-});
 
 app.use("/auth", createAuthRoutes(adRepository, entraRepository, settingsService, adminAuthorizationService, loginHistory, sessionStore));
 app.use("/groups", createGroupRoutes(service, settingsService, loginHistory, sessionStore));
