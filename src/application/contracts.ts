@@ -132,6 +132,8 @@ export interface GroupDisplaySettings {
 export interface DirectorySessionCredentials {
   username: string;
   password: string;
+  /** Opaque random token used as the LDAP connection-pool key. Contains no password material. */
+  poolToken: string;
 }
 
 export interface AdDirectoryRepository {

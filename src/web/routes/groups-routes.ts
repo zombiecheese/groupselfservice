@@ -3,6 +3,7 @@ import session from "express-session";
 import { z } from "zod";
 import { GroupManagementService } from "../../application/group-management-service";
 import { PortalSettingsService } from "../../application/portal-settings-service";
+import { PortalSettings } from "../../application/contracts";
 import { asyncHandler } from "../async-handler";
 import { requireAuth } from "../auth-middleware";
 import { getDirectoryCredentials, getEntraAccessToken } from "../session-directory-credentials";
@@ -69,7 +70,10 @@ export function createGroupRoutes(
       getEntraAccessToken(req.session),
       directoryCredentials
     );
-    const settings = await settingsService.getSettings();
+    // Reuse the settings already fetched by the global per-request middleware
+    // (server.ts) where it populates res.locals.settings for branding. Avoids
+    // a second repository read/decrypt on the most-visited page.
+    const settings = (res.locals.settings as PortalSettings | undefined) ?? await settingsService.getSettings();
     // Banner shown to AD-authenticated users who haven't yet completed an
     // Entra round-trip. We don't auto-redirect to OAuth: the silent attempt
     // already ran after login (see auth-routes), and forcing an interactive
@@ -244,27 +248,38 @@ export function createGroupRoutes(
       return;
     }
     const directoryCredentials = getDirectoryCredentials(req.session);
-    // Resolve in parallel but bounded — Promise.all is fine here because
-    // each call shares the same cache and the upper bound is already
-    // enforced by the schema. The service layer enforces per-group
-    // authorisation, so a forged DN in the array fails for that DN only.
-    const results = await Promise.all(
-      parsed.groupDns.map(async (dn) => {
-        try {
-          const { count, cached } = await resolveMemberCount(
-            req.user!,
-            dn,
-            getEntraAccessToken(req.session),
-            directoryCredentials
-          );
-          return { groupDn: dn, count, cached };
-        } catch (err) {
-          return {
-            groupDn: dn,
-            error: err instanceof Error ? err.message : "Failed to count members",
-          };
-        }
-      })
+    // Resolve with bounded concurrency so a large batch does not fire every
+    // directory query simultaneously and starve the event loop on a
+    // constrained CPU. 8 in-flight saturates I/O without blocking other
+    // requests; cache hits return instantly so the cap is rarely felt.
+    const BATCH_CONCURRENCY = 8;
+    const tasks = parsed.groupDns.map((dn) => async () => {
+      try {
+        const { count, cached } = await resolveMemberCount(
+          req.user!,
+          dn,
+          getEntraAccessToken(req.session),
+          directoryCredentials
+        );
+        return { groupDn: dn, count, cached };
+      } catch (err) {
+        return {
+          groupDn: dn,
+          error: err instanceof Error ? err.message : "Failed to count members",
+        };
+      }
+    });
+    const results: Array<{ groupDn: string; count?: number; cached?: boolean; error?: string }> =
+      new Array(tasks.length);
+    let nextTask = 0;
+    async function worker(): Promise<void> {
+      while (nextTask < tasks.length) {
+        const idx = nextTask++;
+        results[idx] = await tasks[idx]();
+      }
+    }
+    await Promise.all(
+      Array.from({ length: Math.min(BATCH_CONCURRENCY, tasks.length) }, worker)
     );
     res.json({ ok: true, results });
   });

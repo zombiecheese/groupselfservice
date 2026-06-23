@@ -158,6 +158,7 @@ export function createAuthRoutes(
     setDirectoryCredentials(req.session, {
       username: parsed.data.username,
       password: parsed.data.password,
+      poolToken: crypto.randomUUID(),
     });
     setEntraAccessToken(req.session, undefined);
     req.session.user = user;

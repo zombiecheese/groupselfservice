@@ -47,6 +47,12 @@ const ASSET_VERSION = `${Date.now().toString(36)}-${crypto.randomBytes(3).toStri
 // on req.ip / req.secure (rate limiter, session cookie defaults, helmet HSTS).
 app.set("trust proxy", resolveTrustProxy(process.env.TRUST_PROXY || "false"));
 
+// Public liveness probe fast path. Keep this ahead of cookie/session/CSRF
+// and settings-loading middleware so orchestrator probes are effectively free.
+app.get("/healthz", (_req, res) => {
+  res.status(204).end();
+});
+
 app.set("view engine", "ejs");
 // Anchor to __dirname (always the compiled dist/ directory) rather than
 // process.cwd() so the app works regardless of what directory the container
@@ -197,8 +203,12 @@ const sessionsDir = path.join(path.dirname(config.SETTINGS_FILE_PATH), "sessions
 const sessionStore = new FileStore({
   path: sessionsDir,
   ttl: config.SESSION_TTL_SECONDS,
-  // Sweep expired session files every 15 minutes (in seconds).
-  reapInterval: 15 * 60,
+  // Sweep expired session files once per hour. 15 minutes is aggressive on
+  // network-attached storage (EFS/NFS) where a directory readdir+unlink sweep
+  // consumes burst I/O credits and adds measurable latency to concurrent
+  // requests. Session expiry is enforced on read by the TTL check regardless
+  // of whether the file has been reaped, so a longer interval is safe.
+  reapInterval: 60 * 60,
   // Keep the on-disk format opaque; logs go to our winston logger.
   logFn: (msg: string) => logger.warn("session-file-store", { message: msg }),
   fileExtension: ".json",
@@ -305,7 +315,17 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 app.use(doubleCsrfProtection);
-app.use(express.static(path.join(__dirname, "..", "public")));
+app.use(express.static(path.join(__dirname, "..", "public"), {
+  // Assets are served with a cache-busting version stamp appended as
+  // ?v=<ASSET_VERSION> (set at startup and used in every <link>/<script>
+  // tag). Each new deploy produces a unique stamp, so browsers and CDN
+  // edges treat the URL as a brand-new resource. 'immutable' tells the
+  // browser it never needs to revalidate this URL — the stamp changes
+  // instead. Combined, this gives zero-latency repeat loads without any
+  // risk of serving stale CSS/JS after a deploy.
+  maxAge: "1y",
+  immutable: true,
+}));
 
 app.use((req: Request, _res: Response, next: NextFunction) => {
   req.correlationId = req.header("x-correlation-id") ?? crypto.randomUUID();
@@ -348,6 +368,9 @@ app.use(asyncHandler(async (req, res, next) => {
   }
   try {
     const settings = await settingsService.getSettings();
+    // Stash the full settings object for reuse by route handlers within this
+    // request (e.g. groups page) so they don't need a second repository read.
+    res.locals.settings = settings;
     res.locals.branding = settings.branding;
     res.locals.auditEnabled = settings.audit?.enabled === true;
   } catch {
@@ -404,14 +427,6 @@ const auditViewerLimiter = rateLimit({
   legacyHeaders: false,
 });
 app.use(["/admin/audit", "/admin/audit.csv"], auditViewerLimiter);
-
-// Public liveness probe. Deliberately unauthenticated and free of internal
-// detail: a load balancer, container orchestrator, or uptime monitor needs
-// only to know whether the process is responding. The admin Health Status
-// tab (/admin/health) carries the detailed snapshot and stays admin-gated.
-app.get("/healthz", (_req, res) => {
-  res.status(200).json({ ok: true, uptimeSeconds: Math.round(process.uptime()) });
-});
 
 app.use("/auth", createAuthRoutes(adRepository, entraRepository, settingsService, adminAuthorizationService, loginHistory, sessionStore));
 app.use("/groups", createGroupRoutes(service, settingsService, loginHistory, sessionStore));
@@ -587,7 +602,6 @@ async function start(): Promise<void> {
       process.getuid() !== 0
     ) {
       logger.warn("HTTP redirect port may require elevated bind permissions", {
-        port: settings.webTls.redirectHttpPort,
         platform: process.platform,
         hint: "Use a higher port or grant CAP_NET_BIND_SERVICE to the process.",
       });
@@ -605,7 +619,6 @@ async function start(): Promise<void> {
 
     redirectServer.listen(settings.webTls.redirectHttpPort, () => {
       logger.info("HTTP redirect server started", {
-        port: settings.webTls.redirectHttpPort,
         targetPort: config.PORT,
       });
     });

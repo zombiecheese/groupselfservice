@@ -4,6 +4,7 @@ import { PortalSettingsService } from "../../application/portal-settings-service
 import { decryptSecret, encryptSecret } from "../security/secrets-cipher";
 import { writeFileAtomic } from "../atomic-write";
 import { logger } from "../logger";
+import { settingsCache } from "../metrics";
 
 // Sensitive fields persisted in portal-settings.json. They are stored as
 // AES-256-GCM ciphertext on disk and decrypted when settings are read so the
@@ -41,9 +42,44 @@ function encryptForDisk(settings: PortalSettings): PortalSettings {
 }
 
 export class FilePortalSettingsRepository implements PortalSettingsRepository {
-  constructor(private readonly filePath: string) {}
+  private readonly cacheTtlMs: number;
+  private cachedSettings?: { value: PortalSettings; expiresAt: number };
+
+  constructor(private readonly filePath: string, cacheTtlMs: number = 5_000) {
+    this.cacheTtlMs = cacheTtlMs;
+  }
+
+  private cloneSettings(settings: PortalSettings): PortalSettings {
+    return JSON.parse(JSON.stringify(settings)) as PortalSettings;
+  }
+
+  private readCache(): PortalSettings | undefined {
+    if (!this.cachedSettings) {
+      settingsCache.miss();
+      return undefined;
+    }
+    if (this.cachedSettings.expiresAt <= Date.now()) {
+      this.cachedSettings = undefined;
+      settingsCache.miss();
+      return undefined;
+    }
+    settingsCache.hit();
+    return this.cloneSettings(this.cachedSettings.value);
+  }
+
+  private writeCache(settings: PortalSettings): void {
+    this.cachedSettings = {
+      value: this.cloneSettings(settings),
+      expiresAt: Date.now() + this.cacheTtlMs,
+    };
+  }
 
   async get(): Promise<PortalSettings> {
+    const cached = this.readCache();
+    if (cached) {
+      return cached;
+    }
+
     let raw: string;
     try {
       raw = await fs.readFile(this.filePath, "utf-8");
@@ -64,7 +100,7 @@ export class FilePortalSettingsRepository implements PortalSettingsRepository {
       }
       const defaults = PortalSettingsService.createDefaultSettings();
       await this.save(defaults);
-      return defaults;
+      return this.cloneSettings(defaults);
     }
 
     if (!raw.trim()) {
@@ -91,7 +127,7 @@ export class FilePortalSettingsRepository implements PortalSettingsRepository {
       );
     }
 
-    const defaults = PortalSettingsService.createDefaultSettings();
+    const defaults = PortalSettingsService.createMergeDefaults();
 
     const merged: PortalSettings = {
       ...defaults,
@@ -145,7 +181,9 @@ export class FilePortalSettingsRepository implements PortalSettingsRepository {
         ...(parsed.groupDisplay ?? {}),
       },
     };
-    return decryptInPlace(merged);
+    const decrypted = decryptInPlace(merged);
+    this.writeCache(decrypted);
+    return this.cloneSettings(decrypted);
   }
 
   async save(settings: PortalSettings): Promise<void> {
@@ -155,5 +193,6 @@ export class FilePortalSettingsRepository implements PortalSettingsRepository {
       JSON.stringify(onDisk, null, 2),
       { mode: 0o600 }
     );
+    this.writeCache(settings);
   }
 }

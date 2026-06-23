@@ -7,6 +7,36 @@ guarantee a strict version scheme.
 
 ## [Unreleased]
 
+### Performance and operations updates
+- **Settings reads no longer perform PBKDF2 in normal request paths.**
+  `PortalSettingsService` now separates first-run credential initialization
+  from merge-default reads, so routine settings access avoids expensive
+  password-hash work.
+- **Settings repository now has a short in-memory cache.**
+  `FilePortalSettingsRepository` keeps a defensive-cloned 5-second TTL cache,
+  refreshes on save, and emits hit/miss telemetry for `/admin/health`.
+- **Request-scoped settings reuse.**
+  Shared settings are now stored on `res.locals.settings` so downstream route
+  handlers can reuse one read per request instead of repeating repository I/O.
+- **Batched member-count endpoint now uses bounded concurrency.**
+  `/groups/members/counts` runs with a fixed worker pool to prevent bursty
+  directory fan-out from saturating the event loop on constrained CPU.
+- **Static assets now ship with long-lived immutable caching headers.**
+  Versioned asset URLs (`?v=<stamp>`) plus `Cache-Control: max-age=1y,
+  immutable` remove repeat-download overhead across navigations.
+- **Session-store reap cadence reduced from 15 minutes to 60 minutes.**
+  Reduces metadata churn on network filesystems (for example EFS/NFS) while
+  retaining TTL enforcement on read.
+- **Single-instance lock acquisition is now atomic.**
+  Startup lock uses `O_EXCL` semantics (`wx`) to avoid dual-claim races on
+  network storage during concurrent starts.
+- **`/healthz` moved to an early fast path and returns 204.**
+  Liveness probes now bypass session/CSRF/settings middleware and return
+  `204 No Content` with no body, minimizing probe overhead.
+
+### Security — LDAP pool key no longer derived from password
+- **Pool identity decoupled from credentials.** `LdapAdRepository` now identifies connection-pool buckets via an opaque `poolToken` — a `randomUUID()` generated at login and stored inside the AES-256-GCM-encrypted `encryptedDirectoryCredentials` session payload. The previous HMAC-SHA256 / scrypt derivation from the user's password has been removed entirely: pool-map keys contain no password material and can reveal nothing about credentials if a process memory snapshot is captured. `poolToken` is a new field on `DirectorySessionCredentials` in [src/application/contracts.ts](src/application/contracts.ts) and travels through the same encrypted session path as `username` and `password`; no extra secrets, storage, or configuration are required. `poolKey()` in [src/infrastructure/ad/ldap-ad-repository.ts](src/infrastructure/ad/ldap-ad-repository.ts) is now a synchronous O(1) string concatenation.
+
 ### Security — medium-severity hardening pass (M1-M6 findings)
 - **M1: Entra access tokens encrypted at rest.** Access tokens (short-lived, ~1-hour expiry) are now AES-256-GCM-encrypted into `req.session.encryptedEntraAccessToken` using the same cipher as session AD credentials. Tokens are decrypted only for the duration of the Graph API call and immediately garbage-collected. A session-store dump yields ciphertext only. New helpers `encryptEntraAccessToken()` / `decryptEntraAccessToken()` in [src/infrastructure/security/session-crypto.ts](src/infrastructure/security/session-crypto.ts); accessor functions in [src/web/session-directory-credentials.ts](src/web/session-directory-credentials.ts).
 - **M2: Login lockout cleanup prevents unbounded growth.** New `startCleanupInterval()` / `stopCleanupInterval()` functions in [src/application/login-lockout.ts](src/application/login-lockout.ts) sweep expired lockout entries every 5 minutes. Integrated into server startup and graceful shutdown in [src/server.ts](src/server.ts). Stops the per-account lockout map from growing unbounded during username enumeration attacks.

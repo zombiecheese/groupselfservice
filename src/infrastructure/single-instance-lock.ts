@@ -45,7 +45,30 @@ export async function acquireSingleInstanceLock(
   const lockPath = path.join(dataDir, fileName);
   await fsp.mkdir(dataDir, { recursive: true });
 
-  // Read any existing lock and decide whether it's stale.
+  // Attempt atomic exclusive creation first (O_CREAT | O_EXCL | O_WRONLY).
+  // On NFSv4 (including AWS EFS) this is a single server-side operation and
+  // cannot race: exactly one caller wins EEXIST vs success. This replaces the
+  // previous read-check-write pattern that was non-atomic and could let two
+  // processes both read ENOENT and both write their PID.
+  let ownedByUs = false;
+  try {
+    const handle = await fsp.open(lockPath, "wx", 0o600);
+    try {
+      await handle.writeFile(String(process.pid), "utf-8");
+    } finally {
+      await handle.close().catch(() => undefined);
+    }
+    ownedByUs = true;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+    // File already exists — fall through to check whether it is stale.
+  }
+
+  if (ownedByUs) {
+    return { acquired: true, lockPath };
+  }
+
+  // Read the existing lock and decide whether it belongs to a live process.
   let existingPid: number | undefined;
   try {
     const raw = await fsp.readFile(lockPath, "utf-8");
@@ -53,26 +76,52 @@ export async function acquireSingleInstanceLock(
     if (Number.isFinite(parsed) && parsed > 0) existingPid = parsed;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
-  }
-
-  if (existingPid !== undefined) {
-    if (existingPid === process.pid) {
-      // Same process — somehow we're being asked to re-acquire. Treat as ok.
+    // File was removed between our failed open and this read (e.g. the owner
+    // just shut down). Retry acquisition once.
+    try {
+      const handle = await fsp.open(lockPath, "wx", 0o600);
+      try {
+        await handle.writeFile(String(process.pid), "utf-8");
+      } finally {
+        await handle.close().catch(() => undefined);
+      }
       return { acquired: true, lockPath };
+    } catch {
+      // Another process beat us to the retry — treat as locked.
+      return { acquired: false, lockPath };
     }
-    if (isProcessAlive(existingPid)) {
-      return { acquired: false, conflictingPid: existingPid, lockPath };
-    }
-    // Stale lock: previous owner is gone. Fall through and overwrite.
   }
 
-  await fsp.writeFile(lockPath, String(process.pid), "utf-8");
-  try {
-    await fsp.chmod(lockPath, 0o600);
-  } catch {
-    /* best-effort; no-op on Windows */
+  if (existingPid === process.pid) {
+    // Same process — re-acquire is a no-op.
+    return { acquired: true, lockPath };
   }
-  return { acquired: true, lockPath };
+
+  if (existingPid !== undefined && isProcessAlive(existingPid)) {
+    return { acquired: false, conflictingPid: existingPid, lockPath };
+  }
+
+  // Stale lock: owner is gone. Unlink and retry with O_EXCL so the
+  // operation remains atomic even if two starters race the cleanup.
+  try {
+    await fsp.unlink(lockPath);
+  } catch {
+    /* best-effort — another starter may have already claimed it */
+  }
+  try {
+    const handle = await fsp.open(lockPath, "wx", 0o600);
+    try {
+      await handle.writeFile(String(process.pid), "utf-8");
+    } finally {
+      await handle.close().catch(() => undefined);
+    }
+    return { acquired: true, lockPath };
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "EEXIST") {
+      return { acquired: false, lockPath };
+    }
+    throw err;
+  }
 }
 
 export function releaseSingleInstanceLock(lockPath: string): void {

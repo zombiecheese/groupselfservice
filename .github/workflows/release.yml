@@ -37,9 +37,11 @@ jobs:
         id: get_tag
         run: |
           if [ "${{ steps.branch.outputs.branch }}" = "dev" ]; then
-            tag=$(git describe --tags --match "dev-v*" --abbrev=0 2>/dev/null || echo "dev-v0.0.0")
+            tag=$(git tag --list "dev-v*" --sort=-v:refname | head -n 1)
+            tag=${tag:-dev-v0.0.0}
           else
-            tag=$(git describe --tags --match "dev-v*" --abbrev=0 2>/dev/null || echo "dev-v0.0.0")
+            tag=$(git tag --list "v*" --sort=-v:refname | head -n 1)
+            tag=${tag:-v0.0.0}
           fi
           echo "tag=$tag" >> $GITHUB_OUTPUT
 
@@ -50,14 +52,21 @@ jobs:
         id: bump
         run: |
           old=${{ steps.get_tag.outputs.tag }}
-          IFS='.' read -r major minor patch <<< "${old#dev-v}"
-          new_patch=$((patch+1))
 
           if [ "${{ steps.branch.outputs.branch }}" = "dev" ]; then
-            new="dev-v$major.$minor.$new_patch"
+            prefix="dev-v"
           else
-            new="v$major.$minor.$new_patch"
+            prefix="v"
           fi
+
+          IFS='.' read -r major minor patch <<< "${old#"$prefix"}"
+          new_patch=$((patch+1))
+          new="${prefix}${major}.${minor}.${new_patch}"
+
+          while git rev-parse -q --verify "refs/tags/$new" >/dev/null; do
+            new_patch=$((new_patch+1))
+            new="${prefix}${major}.${minor}.${new_patch}"
+          done
 
           echo "new_tag=$new" >> $GITHUB_OUTPUT
 

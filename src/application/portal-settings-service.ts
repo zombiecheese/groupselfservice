@@ -16,6 +16,8 @@ import {
 // re-hashed on the next successful sign-in.
 const PBKDF2_ITERATIONS = 600_000;
 const LEGACY_PBKDF2_ITERATIONS = 120_000;
+const DEFAULT_BREAKGLASS_SALT = "00000000000000000000000000000000";
+const DEFAULT_BREAKGLASS_HASH = "0000000000000000000000000000000000000000000000000000000000000000";
 
 export class PortalSettingsService {
   constructor(private readonly repository: PortalSettingsRepository) {}
@@ -141,16 +143,14 @@ export class PortalSettingsService {
     await this.repository.save(next);
   }
 
-  static createDefaultSettings(): PortalSettings {
-    const salt = crypto.randomBytes(16).toString("hex");
-    const defaultPassword = "ChangeMeNow!123";
-    const hash = crypto.pbkdf2Sync(defaultPassword, salt, PBKDF2_ITERATIONS, 32, "sha256").toString("hex");
-
+  // Defaults used for schema-merging when reading existing settings from disk.
+  // Must stay crypto-cheap because this path is hit on many requests.
+  static createMergeDefaults(): PortalSettings {
     return {
       breakGlass: {
         username: "breakglass",
-        passwordSalt: salt,
-        passwordHash: hash,
+        passwordSalt: DEFAULT_BREAKGLASS_SALT,
+        passwordHash: DEFAULT_BREAKGLASS_HASH,
         passwordHashIterations: PBKDF2_ITERATIONS,
       },
       ad: {
@@ -237,6 +237,21 @@ export class PortalSettingsService {
       },
       groupDisplay: {
         excludedTypes: [],
+      },
+    };
+  }
+
+  static createDefaultSettings(): PortalSettings {
+    const defaults = this.createMergeDefaults();
+    const salt = crypto.randomBytes(16).toString("hex");
+    const defaultPassword = "ChangeMeNow!123";
+    const hash = crypto.pbkdf2Sync(defaultPassword, salt, PBKDF2_ITERATIONS, 32, "sha256").toString("hex");
+    return {
+      ...defaults,
+      breakGlass: {
+        ...defaults.breakGlass,
+        passwordSalt: salt,
+        passwordHash: hash,
       },
     };
   }
